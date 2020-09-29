@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import { Injectable, InternalServerErrorException, HttpException, forwardRef, Inject } from '@nestjs/common';
 import { Model, Types } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
@@ -5,6 +6,8 @@ import { StudentsModel } from './students.schema';
 import { StudentRegisterDTO } from './dto/StudentRegisterDTO';
 import * as bcyrpt from 'bcrypt';
 import { BatchesService } from './../Batches/batches.service';
+import * as fs from 'fs';
+import { normalize } from 'path';
 
 @Injectable()
 export class StudentsService {
@@ -37,7 +40,6 @@ export class StudentsService {
       const studentResponse: any = await this.studentModel.findOne({ _id: Types.ObjectId(studentId) }).lean();
       if (studentResponse?.batchId) {
         const batchDetails = await this.batchesService.getBatchDetails(studentResponse?.batchId.toHexString());
-        console.info('batchDetails', batchDetails);
         studentResponse.batchDetails = batchDetails;
       }
       return studentResponse;
@@ -48,12 +50,42 @@ export class StudentsService {
     }
   }
 
-  async updateStudentDetails({ studentId, studentData }): Promise<any> {
+  async updateStudentDetails({ studentId, studentData, profileImage = null }): Promise<any> {
     try {
       const studentDetails: any = await this.studentModel.findOne({ _id: Types.ObjectId(studentId) });
+      if (!studentDetails) throw new HttpException("Couldn't find the student details", 400);
+
+      if (profileImage) {
+        // Delete the existing profile image
+        if (studentDetails.profileImage) {
+          fs.unlink(studentDetails.profileImage, () => '');
+        }
+        studentDetails.profileImage = profileImage.path;
+      }
 
       if (studentData?.batchId) {
         studentDetails.batchId = studentData?.batchId;
+      }
+
+      if (studentData?.name) {
+        studentDetails.name = studentData?.name;
+      }
+
+      if (studentData?.email) {
+        studentDetails.email = studentData?.email;
+      }
+
+      if (studentData?.gender) {
+        studentDetails.gender = studentData?.gender;
+      }
+
+      if (studentData?.age) {
+        studentDetails.age = studentData?.age;
+      }
+
+      if (studentData?.password) {
+        const encryptedPassword = bcyrpt.hashSync(studentData?.password, parseInt(process.env.PASSWORD_HASH_SALT_ROUND));
+        studentDetails.password = encryptedPassword;
       }
 
       studentDetails.save();

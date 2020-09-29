@@ -109,6 +109,18 @@ export const ExamSchema = new Schema(
     duration: {
       type: Number,
     },
+    resultDelay: {
+      type: Number,
+    },
+    negativeMarks: {
+      type: Boolean,
+    },
+    skipQuestions: {
+      type: Boolean,
+    },
+    shuffleQuestions: {
+      type: Boolean,
+    },
     splitUps: {
       type: ExamSplitUp,
     },
@@ -142,6 +154,10 @@ export interface ExamModel extends Document {
   name?: string;
   description?: string;
   duration?: number;
+  resultDelay?: number;
+  negativeMarks?: boolean;
+  shuffleQuestions?: boolean;
+  skipQuestions?: boolean;
   splitUps: ExamSplitUpInterface;
   questions: QuestionInterface[];
   examStartedDateTime?: Date;

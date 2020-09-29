@@ -26,7 +26,13 @@ export const NotificationsSchema = new Schema(
     to: {
       type: [Types.ObjectId],
     },
+    toAll: {
+      type: Boolean,
+    },
     message: {
+      type: String,
+    },
+    examType: {
       type: String,
     },
     examId: {

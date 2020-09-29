@@ -1,10 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsJSON, IsString, Validate, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsJSON, IsString, Validate, IsOptional, IsBoolean } from 'class-validator';
 import { IsNumberString } from './../../Helpers/CustomValidators/IsNumberString';
 
 export class GenerateExamDTO {
-  @ApiProperty()
-  @IsNotEmpty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsJSON()
   readonly splitUps: string;
 
@@ -37,4 +37,29 @@ export class GenerateExamDTO {
   @IsOptional()
   @IsString()
   readonly batchIds: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  readonly levelIds: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Validate(IsNumberString)
+  readonly resultDelay: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  readonly negativeMarks: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  readonly skipQuestions: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  readonly shuffleQuestions: boolean;
 }

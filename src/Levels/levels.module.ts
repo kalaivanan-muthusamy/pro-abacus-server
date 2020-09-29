@@ -8,5 +8,6 @@ import { LevelsService } from './levels.service';
   imports: [MongooseModule.forFeature([{ name: 'levels', schema: LevelsSchema }])],
   controllers: [LevelsController],
   providers: [LevelsService],
+  exports: [LevelsService]
 })
 export class LevelsModule {}

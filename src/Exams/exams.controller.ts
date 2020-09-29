@@ -14,7 +14,7 @@ export class ExamController {
   constructor(private readonly examService: ExamService) {}
 
   @Post('/')
-  @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER])
+  @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER, ROLES.ADMIN])
   @UseGuards(JwtAuthGuard, RolesGuard)
   async generateExam(@Body() generateExamDTO: GenerateExamDTO, @Req() request: Request): Promise<any> {
     const user = request.user;
@@ -51,5 +51,13 @@ export class ExamController {
   async examResult(@Query('examId') examId: string, @Req() request: Request): Promise<any> {
     const user = request.user;
     return await this.examService.examResult(user, examId);
+  }
+
+  @Get('/acl-details')
+  @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER, ROLES.ADMIN])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getACLExamDetails(@Query('aclExamId') aclExamId: string, @Req() request: Request): Promise<any> {
+    const user = request.user;
+    return await this.examService.getACLExamDetails(user, aclExamId);
   }
 }

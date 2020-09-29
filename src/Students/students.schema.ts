@@ -28,6 +28,9 @@ export const StudentsSchema = new Schema(
     batchId: {
       type: Types.ObjectId,
     },
+    profileImage: {
+      type: String,
+    },
   },
   {
     timestamps: true,
@@ -42,4 +45,5 @@ export interface StudentsModel extends Document {
   age: number;
   level?: string;
   batchId?: Types.ObjectId;
+  profileImage?: string;
 }

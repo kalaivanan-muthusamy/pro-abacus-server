@@ -45,6 +45,10 @@ export const LevelsSchema = new Schema(
       required: true,
       unique: true,
     },
+    duration: {
+      type: Number,
+      required: true,
+    },
     splitUps: {
       type: ExamSplitUp,
       required: true,
@@ -57,5 +61,6 @@ export const LevelsSchema = new Schema(
 
 export interface LevelsModel extends Document {
   name: string;
+  duration: number;
   splitUps: ExamSplitUpInterface;
 }

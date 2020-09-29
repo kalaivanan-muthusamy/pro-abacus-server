@@ -32,6 +32,8 @@ export class NotificationsService {
         type: notificationDTO.type,
         isBatchNotification: notificationDTO.isBatchNotification,
         to: notificationDTO.to,
+        toAll: notificationDTO.toAll,
+        examType: notificationDTO.examType,
         examId: notificationDTO.examId,
         expiryAt: notificationDTO.expiryAt,
         notificationDate: moment.tz('Asia/Calcutta').toDate(),
@@ -60,7 +62,7 @@ export class NotificationsService {
       expiryAt: { $gte: moment.tz('Asia/Calcutta').toDate() },
     };
 
-    const audienceFilter = ['ALL'];
+    const audienceFilter = [NOTIFICATION_AUDIENCES.ALL];
     if (user.role === ROLES.STUDENT) audienceFilter.push(NOTIFICATION_AUDIENCES.STUDENTS);
     if (user.role === ROLES.TEACHER) audienceFilter.push(NOTIFICATION_AUDIENCES.TEACHERS);
     filter.audience = { $in: [...audienceFilter] };
@@ -75,9 +77,17 @@ export class NotificationsService {
 
     console.log(filter);
 
-    const notifications = await this.notificationsModel.find(filter).sort({ notificationDate: -1 });
+    const individualNotifications = await this.notificationsModel.find(filter);
+    const groupNotifications = await this.notificationsModel.find({
+      audience: { $in: audienceFilter },
+      toAll: true,
+    });
 
-    return notifications;
+    const allNotifications = [...individualNotifications, ...groupNotifications].sort((a, b) =>
+      a.notificationDate.getTime() > b.notificationDate.getTime() ? -1 : 0,
+    );
+
+    return allNotifications;
   }
 
   async removeNotification(notificationData: any): Promise<any> {

@@ -13,6 +13,8 @@ import { StudentsService } from './../Students/students.service';
 import { NotificationsService } from './../Notifications/notifications.service';
 import { NOTIFICATION_AUDIENCES } from './../constants';
 import { EXAM_BUFFER_TIME } from './../configs';
+import { LevelsService } from './../Levels/levels.service';
+import { LevelsModel } from 'src/Levels/levels.schema';
 
 @Injectable()
 export class ExamService {
@@ -23,45 +25,159 @@ export class ExamService {
     private readonly answerModel: Model<AnswerModel>,
     private readonly studentsService: StudentsService,
     private readonly notificationsService: NotificationsService,
+    private readonly levelsService: LevelsService,
   ) {}
 
   async generateExam(user: any, examGenerationDTO: GenerateExamDTO): Promise<any> {
     try {
-      const splitUps = JSON.parse(examGenerationDTO.splitUps);
-      const newExam = {
-        examType: examGenerationDTO.examType,
-        examCategory: 'SIMPLE_ABACUS_EXAM',
-        splitUps,
-        questions: generateAllQuestions(splitUps),
-        name: examGenerationDTO.name,
-        description: examGenerationDTO.description,
-        examDate: examGenerationDTO.examDate ? moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate() : undefined,
-        batchIds: <Types.ObjectId[]>(<unknown>examGenerationDTO.batchIds?.split(',')),
-        duration: examGenerationDTO.duration,
-        userId: user.userId,
-      };
-      const examResponse = await this.examModel.create(newExam);
+      if (examGenerationDTO.examType == EXAM_TYPES.WCL) {
+        return await this.generateWCLExam(user, examGenerationDTO);
+      } else if (examGenerationDTO.examType == EXAM_TYPES.ACL) {
+        return await this.generateACLExam(user, examGenerationDTO);
+      } else {
+        const splitUps = JSON.parse(examGenerationDTO.splitUps);
+        const newExam = {
+          examType: examGenerationDTO.examType,
+          examCategory: 'SIMPLE_ABACUS_EXAM',
+          splitUps,
+          questions: generateAllQuestions(splitUps),
+          name: examGenerationDTO.name,
+          description: examGenerationDTO.description,
+          examDate: examGenerationDTO.examDate ? moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate() : undefined,
+          batchIds: <Types.ObjectId[]>(<unknown>examGenerationDTO.batchIds?.split(',')) || undefined,
+          duration: examGenerationDTO.duration,
+          levels: <Types.ObjectId[]>(<unknown>examGenerationDTO.levelIds?.split(',')) || undefined,
+          resultDelay: examGenerationDTO.resultDelay,
+          userId: user.userId,
+        };
+        const examResponse = await this.examModel.create(newExam);
 
-      // Create Notification for ASSESSMENT EXAM
-      if (examGenerationDTO.examType === EXAM_TYPES.ASSESSMENT) {
-        this.notificationsService.createNotification({
-          senderRole: user.role,
-          senderId: user.userId,
-          audience: NOTIFICATION_AUDIENCES.STUDENTS,
-          isBatchNotification: true,
-          to: <Types.ObjectId[]>(<unknown>examGenerationDTO.batchIds?.split(',')),
-          message: 'An Assessment has be scheduled by your teacher',
-          examId: examResponse._id,
-          expiryAt: moment
-            .tz(examGenerationDTO.examDate, 'Asia/Calcutta')
-            .add(EXAM_BUFFER_TIME, 'minutes')
-            .toDate(),
-          type: NOTIFICATION_TYPES.EXAM_NOTIFICATION,
-          notificationDate: moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate(),
-        });
+        // Create Notification for ASSESSMENT EXAM
+        if (examGenerationDTO.examType === EXAM_TYPES.ASSESSMENT) {
+          const examTime = moment.tz(examResponse.examDate, 'Asia/Calcutta').format('DD-MMM-YYYY H:mm:ss');
+          this.notificationsService.createNotification({
+            senderRole: user.role,
+            senderId: user.userId,
+            audience: NOTIFICATION_AUDIENCES.STUDENTS,
+            isBatchNotification: true,
+            to: <Types.ObjectId[]>(<unknown>examGenerationDTO.batchIds?.split(',')),
+            message: `An Assessment has been scheduled by your teacher on ${examTime}`,
+            examType: examGenerationDTO.examType,
+            examId: examResponse._id,
+            expiryAt: moment
+              .tz(examGenerationDTO.examDate, 'Asia/Calcutta')
+              .add(EXAM_BUFFER_TIME, 'minutes')
+              .toDate(),
+            type: NOTIFICATION_TYPES.EXAM_NOTIFICATION,
+            notificationDate: moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate(),
+          });
+        }
+
+        return examResponse;
+      }
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async generateWCLExam(user: any, examGenerationDTO: GenerateExamDTO): Promise<any> {
+    try {
+      const levelIds = examGenerationDTO.levelIds?.split(',');
+      if (!levelIds || levelIds?.length === 0) {
+        throw new HttpException('At-least one level must be selected', 400);
       }
 
-      return examResponse;
+      await Promise.all(
+        levelIds.map(async levelId => {
+          const levelDetails: LevelsModel = await this.levelsService.getLevelDetails(levelId);
+          const newExam = {
+            examType: examGenerationDTO.examType,
+            examCategory: 'SIMPLE_ABACUS_EXAM',
+            splitUps: levelDetails.splitUps,
+            questions: generateAllQuestions(levelDetails.splitUps),
+            name: examGenerationDTO.name,
+            description: examGenerationDTO.description,
+            examDate: examGenerationDTO.examDate ? moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate() : undefined,
+            duration: levelDetails.duration,
+            resultDelay: examGenerationDTO.resultDelay,
+            userId: user.userId,
+          };
+          const examResponse = await this.examModel.create(newExam);
+          const examTime = moment.tz(examResponse.examDate, 'Asia/Calcutta').format('DD-MMM-YYYY H:mm:ss');
+          this.notificationsService.createNotification({
+            senderRole: user.role,
+            senderId: user.userId,
+            audience: NOTIFICATION_AUDIENCES.STUDENTS,
+            to: [],
+            toAll: true,
+            message: `WCL has be scheduled by PRO ABACUS on ${examTime}`,
+            examType: examGenerationDTO.examType,
+            examId: examResponse._id,
+            expiryAt: moment
+              .tz(examGenerationDTO.examDate, 'Asia/Calcutta')
+              .add(EXAM_BUFFER_TIME, 'minutes')
+              .toDate(),
+            type: NOTIFICATION_TYPES.EXAM_NOTIFICATION,
+            notificationDate: moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate(),
+          });
+        }),
+      );
+      return { message: 'WCL scheduled successfully' };
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async generateACLExam(user: any, examGenerationDTO: GenerateExamDTO): Promise<any> {
+    try {
+      const levelIds = examGenerationDTO.levelIds?.split(',');
+      if (!levelIds || levelIds?.length === 0) {
+        throw new HttpException('At-least one level must be selected', 400);
+      }
+
+      await Promise.all(
+        levelIds.map(async levelId => {
+          const levelDetails: LevelsModel = await this.levelsService.getLevelDetails(levelId);
+          const newExam = {
+            examType: examGenerationDTO.examType,
+            examCategory: 'SIMPLE_ABACUS_EXAM',
+            splitUps: levelDetails.splitUps,
+            questions: generateAllQuestions(levelDetails.splitUps),
+            name: examGenerationDTO.name,
+            description: examGenerationDTO.description,
+            examDate: examGenerationDTO.examDate ? moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate() : undefined,
+            duration: levelDetails.duration,
+            resultDelay: examGenerationDTO.resultDelay,
+            negativeMarks: examGenerationDTO.negativeMarks,
+            skipQuestions: examGenerationDTO.skipQuestions,
+            shuffleQuestions: examGenerationDTO.shuffleQuestions,
+            userId: user.userId,
+          };
+          const examResponse = await this.examModel.create(newExam);
+          const examTime = moment.tz(examResponse.examDate, 'Asia/Calcutta').format('DD-MMM-YYYY H:mm:ss');
+          this.notificationsService.createNotification({
+            senderRole: user.role,
+            senderId: user.userId,
+            audience: NOTIFICATION_AUDIENCES.STUDENTS,
+            to: [],
+            toAll: true,
+            message: `ACL has be scheduled by PRO ABACUS on ${examTime}`,
+            examType: examGenerationDTO.examType,
+            examId: examResponse._id,
+            expiryAt: moment
+              .tz(examGenerationDTO.examDate, 'Asia/Calcutta')
+              .add(EXAM_BUFFER_TIME, 'minutes')
+              .toDate(),
+            type: NOTIFICATION_TYPES.EXAM_NOTIFICATION,
+            notificationDate: moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate(),
+          });
+        }),
+      );
+      return { message: 'WCL scheduled successfully' };
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;
@@ -82,7 +198,7 @@ export class ExamService {
         }
       }
 
-      if (exam.examType === EXAM_TYPES.ASSESSMENT) {
+      if ([EXAM_TYPES.ASSESSMENT, EXAM_TYPES.WCL, EXAM_TYPES.ACL].includes(exam.examType)) {
         if (user.role !== ROLES.STUDENT) {
           throw new HttpException('You are not authorized to access this exam', 403);
         }
@@ -186,6 +302,22 @@ export class ExamService {
       const exam = exams?.[0];
       if (!exam || !exam?.examCompletedDateTime) throw new HttpException('This exam is not available or completed yet', 400);
       return exam;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal server error!');
+    }
+  }
+
+  async getACLExamDetails(user: any, aclExamId: string): Promise<any> {
+    try {
+      const exam = await this.examModel.findOne({ _id: Types.ObjectId(aclExamId), examType: EXAM_TYPES.ACL });
+      if (!exam) throw new HttpException('This exam is not available right now', 400);
+      return {
+        name: exam.name,
+        description: exam.description,
+        examDate: exam.examDate,
+      };
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;

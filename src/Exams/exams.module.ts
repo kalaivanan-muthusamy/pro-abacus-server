@@ -5,6 +5,7 @@ import { ExamController } from './exams.controller';
 import { ExamService } from './exams.service';
 import { StudentsModule } from './../Students/students.module';
 import { NotificationsModule } from './../Notifications/notifications.module';
+import { LevelsModule } from './../Levels/levels.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { NotificationsModule } from './../Notifications/notifications.module';
     ]),
     StudentsModule,
     NotificationsModule,
+    LevelsModule,
   ],
   controllers: [ExamController],
   providers: [ExamService],

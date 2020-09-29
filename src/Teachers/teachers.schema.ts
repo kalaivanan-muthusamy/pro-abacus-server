@@ -26,6 +26,9 @@ export const TeachersSchema = new Schema(
       type: String,
       required: true,
     },
+    profileImage: {
+      type: String,
+    },
   },
   {
     timestamps: true,
@@ -39,4 +42,5 @@ export interface TeachersModel extends Document {
   gender: string;
   age: number;
   centerName: string;
+  profileImage?: string;
 }
