@@ -19,8 +19,6 @@ export class StudentsController {
   constructor(private readonly studentsService: StudentsService) {}
 
   @Post('/')
-  @SetMetadata('roles', [ROLES.STUDENT])
-  @UseGuards(JwtAuthGuard, RolesGuard)
   async register(@Body() studentRegisterDTO: StudentRegisterDTO): Promise<any> {
     return this.studentsService.studentRegister(studentRegisterDTO);
   }
