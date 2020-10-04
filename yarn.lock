@@ -669,6 +669,30 @@
     "@angular-devkit/core" "10.0.7"
     "@angular-devkit/schematics" "10.0.7"
 
+"@sendgrid/client@^7.2.6":
+  version "7.2.6"
+  resolved "https://registry.yarnpkg.com/@sendgrid/client/-/client-7.2.6.tgz#28374927b5d9b3b351b9426f4a218d23d590c958"
+  integrity sha512-AOB3IVlB76SMYdaLEtWGm6/GwrOv0xlAOkyCqk5+XifJRqL2pl8a9lfxFZ9BEnWrdqPJPJ1/omopj0P7d5ZPmw==
+  dependencies:
+    "@sendgrid/helpers" "^7.2.6"
+    axios "^0.19.2"
+
+"@sendgrid/helpers@^7.2.6":
+  version "7.2.6"
+  resolved "https://registry.yarnpkg.com/@sendgrid/helpers/-/helpers-7.2.6.tgz#5d15b8914940147c0635c9a3d2a93fed8c73dc71"
+  integrity sha512-J2xniPBOVo4ASzx+xc735OovHGj/v9oNrDo1Bb5fwTg/kmUxWxeoKZRkB+KLdciwmTtVrZjYLdQB3pMFIe9lAw==
+  dependencies:
+    chalk "^2.0.1"
+    deepmerge "^4.2.2"
+
+"@sendgrid/mail@^7.2.6":
+  version "7.2.6"
+  resolved "https://registry.yarnpkg.com/@sendgrid/mail/-/mail-7.2.6.tgz#8f6a398ad75fb1ed7a35a9bb18cbdac111637ef6"
+  integrity sha512-eP9MuqEZIgt4bHaoufWqKGUY4Bo7FUgST3WGNYIDXIe1rP2dV6/JR7Ac2Dl9iW22gy15nc58fLGIGa41XbwtuA==
+  dependencies:
+    "@sendgrid/client" "^7.2.6"
+    "@sendgrid/helpers" "^7.2.6"
+
 "@sinonjs/commons@^1.7.0":
   version "1.8.1"
   resolved "https://registry.yarnpkg.com/@sinonjs/commons/-/commons-1.8.1.tgz#e7df00f98a203324f6dc7cc606cad9d4a8ab2217"
@@ -1513,6 +1537,13 @@ axios@0.20.0:
   dependencies:
     follow-redirects "^1.10.0"
 
+axios@^0.19.2:
+  version "0.19.2"
+  resolved "https://registry.yarnpkg.com/axios/-/axios-0.19.2.tgz#3ea36c5d8818d0d5f8a8a97a6d36b86cdc00cb27"
+  integrity sha512-fjgm5MvRHLhx+osE2xoekY70AhARk3a6hkN+3Io1jc00jtquGvxYlKlsFUhmUET0V5te6CcZI7lcv2Ym61mjHA==
+  dependencies:
+    follow-redirects "1.5.10"
+
 babel-jest@^26.3.0:
   version "26.3.0"
   resolved "https://registry.yarnpkg.com/babel-jest/-/babel-jest-26.3.0.tgz#10d0ca4b529ca3e7d1417855ef7d7bd6fc0c3463"
@@ -1916,7 +1947,7 @@ chalk@3.0.0, chalk@^3.0.0:
     ansi-styles "^4.1.0"
     supports-color "^7.1.0"
 
-chalk@^2.0.0, chalk@^2.3.0, chalk@^2.4.1, chalk@^2.4.2:
+chalk@^2.0.0, chalk@^2.0.1, chalk@^2.3.0, chalk@^2.4.1, chalk@^2.4.2:
   version "2.4.2"
   resolved "https://registry.yarnpkg.com/chalk/-/chalk-2.4.2.tgz#cd42541677a54333cf541a49108c1432b44c9424"
   integrity sha512-Mti+f9lpJNcwF4tWV8/OrTTtF1gZi+f8FqlyAdouralcFWFQWF2+NgCHShjkCb+IFBLq9buZwE1xckQU4peSuQ==
@@ -2400,7 +2431,7 @@ debug@2.6.9, debug@^2.2.0, debug@^2.3.3, debug@^2.6.9:
   dependencies:
     ms "2.0.0"
 
-debug@3.1.0:
+debug@3.1.0, debug@=3.1.0:
   version "3.1.0"
   resolved "https://registry.yarnpkg.com/debug/-/debug-3.1.0.tgz#5bb5a0672628b64149566ba16819e61518c67261"
   integrity sha512-OX8XqP7/1a9cqkxYw2yXss15f26NKWBpDXQd0/uK/KPqdQhxbPa994hnzjcE2VqQpDslf55723cKPUOGSmMY3g==
@@ -3278,6 +3309,13 @@ flush-write-stream@^1.0.0:
   dependencies:
     inherits "^2.0.3"
     readable-stream "^2.3.6"
+
+follow-redirects@1.5.10:
+  version "1.5.10"
+  resolved "https://registry.yarnpkg.com/follow-redirects/-/follow-redirects-1.5.10.tgz#7b7a9f9aea2fdff36786a94ff643ed07f4ff5e2a"
+  integrity sha512-0V5l4Cizzvqt5D44aTXbFZz+FtyXV1vrDN6qrelxtfYQKW0KO0W2T/hkE8xvGa/540LkZlkaUjO4ailYTFtHVQ==
+  dependencies:
+    debug "=3.1.0"
 
 follow-redirects@^1.10.0:
   version "1.13.0"

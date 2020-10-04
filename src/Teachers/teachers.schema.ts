@@ -9,6 +9,7 @@ export const TeachersSchema = new Schema(
     email: {
       type: String,
       required: true,
+      unique: true,
     },
     password: {
       type: String,
@@ -29,6 +30,19 @@ export const TeachersSchema = new Schema(
     profileImage: {
       type: String,
     },
+    emailVerificationHash: {
+      type: String,
+    },
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    forgotPasswordHash: {
+      type: String,
+    },
+    forgotPasswordExpiryDate: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
@@ -43,4 +57,8 @@ export interface TeachersModel extends Document {
   age: number;
   centerName: string;
   profileImage?: string;
+  emailVerificationHash?: string;
+  emailVerified?: boolean;
+  forgotPasswordHash?: string;
+  forgotPasswordExpiryDate?: Date;
 }

@@ -9,6 +9,7 @@ import { TeachersModule } from './Teachers/teachers.module';
 import { BatchesModule } from './Batches/batches.module';
 import { NotificationsModule } from './Notifications/notifications.module';
 import { LevelsModule } from './Levels/levels.module';
+import { MailModule } from './Mail/mail.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { LevelsModule } from './Levels/levels.module';
     BatchesModule,
     NotificationsModule,
     LevelsModule,
+    MailModule,
   ],
 })
 export class AppModule {}

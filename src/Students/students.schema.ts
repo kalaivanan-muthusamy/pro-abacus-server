@@ -9,6 +9,7 @@ export const StudentsSchema = new Schema(
     email: {
       type: String,
       required: true,
+      unique: true,
     },
     password: {
       type: String,
@@ -31,6 +32,19 @@ export const StudentsSchema = new Schema(
     profileImage: {
       type: String,
     },
+    emailVerificationHash: {
+      type: String,
+    },
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    forgotPasswordHash: {
+      type: String,
+    },
+    forgotPasswordExpiryDate: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
@@ -46,4 +60,8 @@ export interface StudentsModel extends Document {
   level?: string;
   batchId?: Types.ObjectId;
   profileImage?: string;
+  emailVerificationHash?: string;
+  emailVerified?: boolean;
+  forgotPasswordHash?: string;
+  forgotPasswordExpiryDate?: Date;
 }

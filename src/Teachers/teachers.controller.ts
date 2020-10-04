@@ -12,6 +12,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { customFileName } from 'src/Helpers/File';
 import { imageFileFilter } from './../Helpers/File/index';
+import { TeacherEmailVerificationDTO } from './dto/TeacherEmailVerificationDTO';
+import { TeacherResetPasswordDTO } from './dto/TeacherResetPasswordDTO';
 
 @ApiBearerAuth()
 @Controller('/api/teachers')
@@ -21,6 +23,21 @@ export class TeachersController {
   @Post('/')
   async register(@Body() teacherRegistrationDTO: TeacherRegistrationDTO): Promise<any> {
     return this.teachersService.register(teacherRegistrationDTO);
+  }
+
+  @Post('/verify')
+  async verifyTeacherEmail(@Body() teacherEmailVerificationDTO: TeacherEmailVerificationDTO): Promise<any> {
+    return this.teachersService.verifyTeacherEmail(teacherEmailVerificationDTO);
+  }
+
+  @Post('/forgot-password-request')
+  async forgotPasswordRequest(@Body('email') email: string): Promise<any> {
+    return this.teachersService.forgotPasswordRequest(email);
+  }
+
+  @Post('/reset-password')
+  async resetPassword(@Body() teacherResetPasswordDTO: TeacherResetPasswordDTO): Promise<any> {
+    return this.teachersService.resetPassword(teacherResetPasswordDTO);
   }
 
   @Get('/')
