@@ -14,6 +14,9 @@ export const AdminsSchema = new Schema(
       type: String,
       required: true,
     },
+    profileImage: {
+      type: String,
+    },
   },
   {
     timestamps: true,
@@ -24,4 +27,5 @@ export interface AdminsModel extends Document {
   name: string;
   email: string;
   password: string;
+  profileImage?: string;
 }
