@@ -25,6 +25,7 @@ export const StudentsSchema = new Schema(
     },
     level: {
       type: String,
+      default: 'Level 1',
     },
     batchId: {
       type: Types.ObjectId,

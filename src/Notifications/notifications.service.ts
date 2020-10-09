@@ -57,7 +57,7 @@ export class NotificationsService {
       userDetails = await this.teachersService.getTeacherDetails({ teacherId: Types.ObjectId(user.userId) });
     }
 
-    const filter: any = {
+    const defaultFilter: any = {
       isDeleted: false,
       expiryAt: { $gte: moment.tz('Asia/Calcutta').toDate() },
     };
@@ -65,7 +65,6 @@ export class NotificationsService {
     const audienceFilter = [NOTIFICATION_AUDIENCES.ALL];
     if (user.role === ROLES.STUDENT) audienceFilter.push(NOTIFICATION_AUDIENCES.STUDENTS);
     if (user.role === ROLES.TEACHER) audienceFilter.push(NOTIFICATION_AUDIENCES.TEACHERS);
-    filter.audience = { $in: [...audienceFilter] };
 
     let toFilter = [];
     if (user.role === ROLES.STUDENT) {
@@ -73,13 +72,15 @@ export class NotificationsService {
     } else if (user.role === ROLES.TEACHER) {
       toFilter = [user.userId];
     }
-    filter.to = { $in: [...toFilter] };
 
-    console.log(filter);
-
-    const individualNotifications = await this.notificationsModel.find(filter);
+    const individualNotifications = await this.notificationsModel.find({
+      ...defaultFilter,
+      audience: { $in: [...audienceFilter] },
+      to: { $in: [...toFilter] },
+    });
     const groupNotifications = await this.notificationsModel.find({
-      audience: { $in: audienceFilter },
+      ...defaultFilter,
+      audience: { $in: [...audienceFilter] },
       toAll: true,
     });
 

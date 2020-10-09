@@ -53,6 +53,14 @@ export class ExamController {
     return await this.examService.examResult(user, examId);
   }
 
+  @Get('/reports')
+  @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getExamReports(@Req() request: Request): Promise<any> {
+    const user: any = request.user;
+    return await this.examService.getExamReports({ userId: user.userId });
+  }
+
   @Get('/acl-details')
   @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER, ROLES.ADMIN])
   @UseGuards(JwtAuthGuard, RolesGuard)

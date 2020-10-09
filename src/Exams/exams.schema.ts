@@ -1,5 +1,4 @@
 import { Schema, Document, Types } from 'mongoose';
-import { Type } from 'aws-sdk/clients/cloudformation';
 
 export interface AbacusSplitUpInterface {
   digits: number;
@@ -164,48 +163,83 @@ export interface ExamModel extends Document {
   examCompletedDateTime?: Date;
 }
 
-export const AnswerSchema = new Schema(
+const AnswerSchema = {
+  questionId: {
+    type: Types.ObjectId,
+    required: true,
+  },
+  givenAnswer: {
+    type: Number,
+    required: true,
+  },
+  answer: {
+    type: Number,
+    required: true,
+  },
+  isCorrectAnswer: {
+    type: Boolean,
+    required: true,
+  },
+  timeTaken: {
+    type: Number,
+    required: true,
+  },
+};
+
+export const AnswersSchema = new Schema(
   {
     examId: {
       type: Types.ObjectId,
       required: true,
     },
-    questionId: {
-      type: Types.ObjectId,
+    examType: {
+      type: String,
       required: true,
+    },
+    examStartedOn: {
+      type: Date,
+      required: true,
+    },
+    examCompletedOn: {
+      type: Date,
     },
     userId: {
       type: Types.ObjectId,
       required: true,
     },
-    givenAnswer: {
-      type: Number,
-      required: true,
-    },
-    answer: {
-      type: Number,
-      required: true,
-    },
-    isCorrectAnswer: {
-      type: Boolean,
-      required: true,
-    },
-    timeTaken: {
-      type: Number,
-      required: true,
+    answers: {
+      type: [AnswerSchema],
+      default: [],
     },
   },
   {
     timestamps: true,
+    toJSON: {
+      virtuals: true,
+    },
   },
 );
 
-export interface AnswerModel extends Document {
-  examId: Types.ObjectId;
+AnswersSchema.virtual('examDetails', {
+  ref: 'exams',
+  localField: 'examId',
+  foreignField: '_id',
+  justOne: true,
+});
+
+interface AnswerInterface {
   questionId: Types.ObjectId;
-  userId: Types.ObjectId;
   givenAnswer: number;
   answer: number;
   isCorrectAnswer: boolean;
   timeTaken: number;
+}
+
+export interface AnswersModel extends Document {
+  examId: Types.ObjectId;
+  examType: string;
+  userId: Types.ObjectId;
+  examStartedOn: Date;
+  examCompletedOn?: Date;
+  answers?: AnswerInterface[];
 }
