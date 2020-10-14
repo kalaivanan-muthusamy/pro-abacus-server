@@ -23,9 +23,9 @@ export const StudentsSchema = new Schema(
       type: Number,
       required: true,
     },
-    level: {
-      type: String,
-      default: 'Level 1',
+    levelId: {
+      type: Types.ObjectId,
+      required: true,
     },
     batchId: {
       type: Types.ObjectId,
@@ -49,8 +49,25 @@ export const StudentsSchema = new Schema(
   },
   {
     timestamps: true,
+    toJSON: {
+      virtuals: true,
+    },
   },
 );
+
+StudentsSchema.virtual('levelDetails', {
+  ref: 'levels',
+  localField: 'levelId',
+  foreignField: '_id',
+  justOne: true,
+});
+
+StudentsSchema.virtual('batchDetails', {
+  ref: 'batches',
+  localField: 'batchId',
+  foreignField: '_id',
+  justOne: true,
+});
 
 export interface StudentsModel extends Document {
   name: string;
@@ -58,7 +75,7 @@ export interface StudentsModel extends Document {
   password: string;
   gender: string;
   age: number;
-  level?: string;
+  levelId: Types.ObjectId;
   batchId?: Types.ObjectId;
   profileImage?: string;
   emailVerificationHash?: string;

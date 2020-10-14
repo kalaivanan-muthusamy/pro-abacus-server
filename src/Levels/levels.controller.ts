@@ -20,8 +20,6 @@ export class LevelsController {
   }
 
   @Get('/')
-  @SetMetadata('roles', [ROLES.ADMIN])
-  @UseGuards(JwtAuthGuard, RolesGuard)
   async getAllLevels(): Promise<any> {
     return this.levelsService.getAllLevels();
   }

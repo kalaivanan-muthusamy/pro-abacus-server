@@ -16,5 +16,10 @@ export class NewLevelDTO {
   @ApiProperty()
   @IsNotEmpty()
   @Validate(IsNumberString)
+  readonly orderValue: number;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @Validate(IsNumberString)
   readonly duration: number;
 }

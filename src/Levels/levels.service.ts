@@ -18,6 +18,7 @@ export class LevelsService {
       const level = {
         name: newLevelDTO.name,
         duration: newLevelDTO.duration,
+        orderValue: newLevelDTO.orderValue,
         splitUps: splitUps,
       };
       const newLevelResponse = await this.levelsModel.create(level);
@@ -44,6 +45,9 @@ export class LevelsService {
       }
       if (updateLevelDTO.duration) {
         levelDetails.duration = updateLevelDTO.duration;
+      }
+      if (updateLevelDTO.orderValue) {
+        levelDetails.orderValue = updateLevelDTO.orderValue;
       }
       if (updateLevelDTO.splitUps) {
         const splitUps = JSON.parse(updateLevelDTO.splitUps);

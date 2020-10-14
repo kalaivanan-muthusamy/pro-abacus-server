@@ -7,12 +7,14 @@ import { BatchesModule } from './../Batches/batches.module';
 import { MulterModule } from '@nestjs/platform-express';
 import { MailModule } from './../Mail/mail.module';
 import { ExamModule } from './../Exams/exams.module';
+import { LevelsModule } from './../Levels/levels.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: 'students', schema: StudentsSchema }]),
     forwardRef(() => BatchesModule),
     forwardRef(() => ExamModule),
+    LevelsModule,
     MailModule,
     MulterModule.register({
       dest: '/uploads',

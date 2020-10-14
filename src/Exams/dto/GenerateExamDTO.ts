@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsJSON, IsString, Validate, IsOptional, IsBoolean } from 'class-validator';
+import { IsNotEmpty, IsJSON, IsString, Validate, IsOptional, IsBoolean, ValidateIf, IsDateString } from 'class-validator';
 import { IsNumberString } from './../../Helpers/CustomValidators/IsNumberString';
 
 export class GenerateExamDTO {
@@ -29,8 +29,9 @@ export class GenerateExamDTO {
   readonly description: string;
 
   @ApiProperty()
-  @IsOptional()
-  @IsString()
+  @ValidateIf(o => ['WCL', 'ACL'].includes(o.examType))
+  @IsNotEmpty()
+  @IsDateString({ message: 'Exam date should be provided' })
   readonly examDate: string;
 
   @ApiProperty()

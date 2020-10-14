@@ -68,4 +68,35 @@ export class ExamController {
     const user = request.user;
     return await this.examService.getACLExamDetails(user, aclExamId);
   }
+
+  @Get('/completed')
+  @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER, ROLES.ADMIN])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async completedExams(@Query('examType') examType: string, @Req() request: Request): Promise<any> {
+    const user = request.user;
+    return await this.examService.getCompletedExamDetails(examType, user);
+  }
+
+  @Get('/results')
+  @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER, ROLES.ADMIN])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getExamResults(@Query('examId') examId: string, @Query('limit') limit: string): Promise<any> {
+    return await this.examService.getExamResults(examId, limit);
+  }
+
+  @Get('/recent-wcl-report')
+  @SetMetadata('roles', [ROLES.STUDENT])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getRecentWCLReport(@Req() request: Request): Promise<any> {
+    const user = request.user;
+    return await this.examService.getRecentWCLReport(user);
+  }
+
+  @Get('/notice-board/wcl-star')
+  @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER, ROLES.ADMIN])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getWCLStarDetails(@Req() request: Request): Promise<any> {
+    const user = request.user;
+    return await this.examService.getWCLStarDetails(user);
+  }
 }

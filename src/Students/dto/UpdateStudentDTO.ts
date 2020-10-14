@@ -33,4 +33,9 @@ export class UpdateStudentDTO {
   @ApiPropertyOptional()
   @IsOptional()
   readonly profileImage: any;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  readonly levelId: string;
 }

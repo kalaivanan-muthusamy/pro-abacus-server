@@ -29,4 +29,9 @@ export class StudentRegisterDTO {
   @IsNotEmpty()
   @Validate(IsNumberString)
   readonly age: number;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  readonly levelId: string;
 }

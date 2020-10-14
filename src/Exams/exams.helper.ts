@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 
+import { getFormattedNumber } from 'src/Helpers/Math';
+
 export function getAverageSpeed(exams: any): any {
   let totalSpeed = 0;
   const totalExams = exams.length;
   exams?.map?.(exam => {
     let speed = 0;
-    const answeredQuestions = exam.answers.length; // 15
-    const duration = exam.examDetails.duration; // 10 min
+    const answeredQuestions = exam.answers?.length; // 15
+    const duration = exam.examDetails?.duration; // 10 min
     const timeForOneQuestion = (duration * 60) / answeredQuestions; // 30 seconds
     speed = 3600 / timeForOneQuestion;
     totalSpeed += speed;
@@ -17,17 +19,32 @@ export function getAverageSpeed(exams: any): any {
   return avgSpeed || 0;
 }
 
+export function getAverageSpeedFromResult(results: any): any {
+  const totalSpeed = results?.reduce?.((acc, cur) => acc + cur.speed, 0);
+  return getFormattedNumber(totalSpeed / results?.length);
+}
+
+export function getAverageAccuracyFromResult(results: any): any {
+  const totalAccuracy = results?.reduce?.((acc, cur) => acc + cur.accuracy, 0);
+  return getFormattedNumber(totalAccuracy / results?.length);
+}
+
+export function getAverageDurationFromResult(results: any): any {
+  const totalTimeTaken = results?.reduce?.((acc, cur) => acc + cur.timeTaken, 0);
+  return getFormattedNumber(totalTimeTaken / results?.length);
+}
+
 export function getAverageDuration(exams: any): any {
   let totalTimeTaken = 0;
   const totalExams = exams.length;
   exams?.map?.(exam => {
-    const timeTaken = exam.answers.reduce((acc, cur) => acc + cur.timeTaken, 0);
+    const timeTaken = exam.answers?.reduce((acc, cur) => acc + cur.timeTaken, 0);
     totalTimeTaken += timeTaken;
   });
 
   const avgDuration = totalTimeTaken / totalExams;
 
-  return parseFloat(avgDuration.toFixed(2))  || 0;
+  return parseFloat(avgDuration.toFixed(2)) || 0;
 }
 
 export function getAverageAccuracy(exams: any): any {
@@ -35,8 +52,8 @@ export function getAverageAccuracy(exams: any): any {
   const totalExams = exams.length;
   exams?.map?.(exam => {
     let accuracy = 0;
-    const totalQuestions = exam.examDetails.questions.length;
-    const correctAnswers = exam.answers.filter(answer => answer.isCorrectAnswer).length;
+    const totalQuestions = exam.examDetails?.questions?.length;
+    const correctAnswers = exam.answers?.filter(answer => answer.isCorrectAnswer).length;
     accuracy = (correctAnswers / totalQuestions) * 100;
     totalAccuracy += accuracy;
   });

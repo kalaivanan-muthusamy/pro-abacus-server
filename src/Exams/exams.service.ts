@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import { HttpException, Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { Model, Types } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import * as moment from 'moment-timezone';
@@ -12,11 +13,23 @@ import { ROLES } from './../constants';
 import { StudentsService } from './../Students/students.service';
 import { NotificationsService } from './../Notifications/notifications.service';
 import { NOTIFICATION_AUDIENCES } from './../constants';
-import { EXAM_BUFFER_TIME } from './../configs';
+import { APP_TIMEZONE, EXAM_BUFFER_TIME } from './../configs';
 import { LevelsService } from './../Levels/levels.service';
 import { LevelsModel } from 'src/Levels/levels.schema';
 import { forwardRef } from '@nestjs/common';
-import { getAverageSpeed, getAverageAccuracy, getAverageDuration } from './exams.helper';
+import {
+  getAverageSpeed,
+  getAverageAccuracy,
+  getAverageDuration,
+  getAverageDurationFromResult,
+  getAverageSpeedFromResult,
+} from './exams.helper';
+import { ResultsQueueModel } from './exams.schema';
+import { RESULT_QUEUE_STATUS } from './../constants';
+import { ResultsModel } from './exams.schema';
+import { getScoredMarks } from './helpers/GetScoredMarks';
+import { getFormattedNumber } from './../Helpers/Math/index';
+import { getAverageAccuracyFromResult } from './exams.helper';
 
 @Injectable()
 export class ExamService {
@@ -25,6 +38,10 @@ export class ExamService {
     private readonly examModel: Model<ExamModel>,
     @InjectModel('answers')
     private readonly answersModel: Model<AnswersModel>,
+    @InjectModel('results')
+    private readonly resultsModel: Model<ResultsModel>,
+    @InjectModel('resultsQueue')
+    private readonly resultsQueueModel: Model<ResultsQueueModel>,
     @Inject(forwardRef(() => StudentsService))
     private readonly studentsService: StudentsService,
     private readonly notificationsService: NotificationsService,
@@ -49,6 +66,7 @@ export class ExamService {
           examDate: examGenerationDTO.examDate ? moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate() : undefined,
           batchIds: <Types.ObjectId[]>(<unknown>examGenerationDTO.batchIds?.split(',')) || undefined,
           duration: examGenerationDTO.duration,
+          // TODO - To be removed?
           levels: <Types.ObjectId[]>(<unknown>examGenerationDTO.levelIds?.split(',')) || undefined,
           resultDelay: examGenerationDTO.resultDelay,
           userId: user.userId,
@@ -99,22 +117,25 @@ export class ExamService {
             examType: examGenerationDTO.examType,
             examCategory: 'SIMPLE_ABACUS_EXAM',
             splitUps: levelDetails.splitUps,
+            levelId: levelDetails._id,
             questions: generateAllQuestions(levelDetails.splitUps),
             name: examGenerationDTO.name,
             description: examGenerationDTO.description,
-            examDate: examGenerationDTO.examDate ? moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate() : undefined,
+            examDate: moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate(),
             duration: levelDetails.duration,
             resultDelay: examGenerationDTO.resultDelay,
             userId: user.userId,
           };
           const examResponse = await this.examModel.create(newExam);
+
+          // Create notification
           const examTime = moment.tz(examResponse.examDate, 'Asia/Calcutta').format('DD-MMM-YYYY H:mm:ss');
           this.notificationsService.createNotification({
             senderRole: user.role,
             senderId: user.userId,
             audience: NOTIFICATION_AUDIENCES.STUDENTS,
-            to: [],
-            toAll: true,
+            to: [levelDetails._id],
+            toAll: false,
             message: `WCL has be scheduled by PRO ABACUS on ${examTime}`,
             examType: examGenerationDTO.examType,
             examId: examResponse._id,
@@ -124,6 +145,16 @@ export class ExamService {
               .toDate(),
             type: NOTIFICATION_TYPES.EXAM_NOTIFICATION,
             notificationDate: moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate(),
+          });
+
+          // Schedule result preparation queue
+          const resultPreparationTime = moment
+            .tz(examResponse.examDate, 'Asia/Calcutta')
+            .add(examResponse.duration, 'minutes')
+            .add(EXAM_BUFFER_TIME + 3, 'minutes');
+          await this.resultsQueueModel.create({
+            examId: examResponse._id,
+            preparationTime: resultPreparationTime.toDate(),
           });
         }),
       );
@@ -149,7 +180,7 @@ export class ExamService {
             examType: examGenerationDTO.examType,
             examCategory: 'SIMPLE_ABACUS_EXAM',
             splitUps: levelDetails.splitUps,
-            questions: generateAllQuestions(levelDetails.splitUps),
+            questions: generateAllQuestions(levelDetails.splitUps, examGenerationDTO.negativeMarks),
             name: examGenerationDTO.name,
             description: examGenerationDTO.description,
             examDate: examGenerationDTO.examDate ? moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate() : undefined,
@@ -161,6 +192,8 @@ export class ExamService {
             userId: user.userId,
           };
           const examResponse = await this.examModel.create(newExam);
+
+          // Create notification
           const examTime = moment.tz(examResponse.examDate, 'Asia/Calcutta').format('DD-MMM-YYYY H:mm:ss');
           this.notificationsService.createNotification({
             senderRole: user.role,
@@ -177,6 +210,16 @@ export class ExamService {
               .toDate(),
             type: NOTIFICATION_TYPES.EXAM_NOTIFICATION,
             notificationDate: moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate(),
+          });
+
+          // Schedule result preparation
+          const resultPreparationTime = moment
+            .tz(examResponse.examDate, 'Asia/Calcutta')
+            .add(examResponse.duration, 'minutes')
+            .add(EXAM_BUFFER_TIME + 3, 'minutes');
+          await this.resultsQueueModel.create({
+            examId: examResponse._id,
+            preparationTime: resultPreparationTime.toDate(),
           });
         }),
       );
@@ -233,7 +276,6 @@ export class ExamService {
 
       // Once exam is started, check and create an entry in Answers collection
       const existingExamAnswers = await this.answersModel.findOne({ examId: exam._id, userId: Types.ObjectId(user.userId) });
-      console.log('existingExamAnswers', existingExamAnswers);
       if (existingExamAnswers) {
         throw new HttpException("This exam can't be started", 400);
       }
@@ -347,24 +389,24 @@ export class ExamService {
         })
         .populate('examDetails');
 
-      let ACLExams: any = examsCompleted.filter(exam => exam.examType === EXAM_TYPES.ACL) ?? [];
-      ACLExams = {
-        exams: ACLExams,
-        participated: ACLExams?.length,
-        avgSpeed: getAverageSpeed(ACLExams),
-        avgAccuracy: getAverageAccuracy(ACLExams),
-        avgDuration: getAverageDuration(ACLExams),
-        totalStars: 0,
+      const ACLExamResults: any = await this.resultsModel.find({ userId: Types.ObjectId(userId), examType: EXAM_TYPES.ACL });
+      const ACLExams = {
+        exams: ACLExamResults,
+        participated: ACLExamResults?.length,
+        avgSpeed: getAverageSpeedFromResult(ACLExamResults),
+        avgAccuracy: getAverageAccuracyFromResult(ACLExamResults),
+        avgDuration: getAverageDurationFromResult(ACLExamResults),
+        totalStars: ACLExamResults?.filter?.(result => result.isACLStar).length,
       };
 
-      let WCLExams: any = examsCompleted.filter(exam => exam.examType === EXAM_TYPES.WCL);
-      WCLExams = {
-        exams: WCLExams,
-        participated: WCLExams?.length,
-        avgSpeed: getAverageSpeed(WCLExams),
-        avgAccuracy: getAverageAccuracy(WCLExams),
-        avgDuration: getAverageDuration(WCLExams),
-        totalStars: 0,
+      const WCLExamResults: any = await this.resultsModel.find({ userId: Types.ObjectId(userId), examType: EXAM_TYPES.WCL });
+      const WCLExams = {
+        exams: WCLExamResults,
+        participated: WCLExamResults?.length,
+        avgSpeed: getAverageSpeedFromResult(WCLExamResults),
+        avgAccuracy: getAverageAccuracyFromResult(WCLExamResults),
+        avgDuration: getAverageDurationFromResult(WCLExamResults),
+        totalStars: WCLExamResults?.filter?.(result => result.isWCLStar).length,
       };
 
       let PracticeExams: any = examsCompleted.filter(exam => exam.examType === EXAM_TYPES.PRACTICE);
@@ -409,5 +451,171 @@ export class ExamService {
       if (err instanceof HttpException) throw err;
       throw new InternalServerErrorException('Internal server error!');
     }
+  }
+
+  async getCompletedExamDetails(examType: string, user: any): Promise<any> {
+    try {
+      const filter: any = { examType, isCompleted: true };
+      if (user.role === ROLES.STUDENT) {
+        const studentDetails = await this.studentsService.getStudentDetails({ studentId: user.userId });
+        filter.levelId = studentDetails.levelId;
+      }
+      const examDetails = this.examModel.find(filter).select('_id name description examDate duration');
+      return examDetails;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal server error!');
+    }
+  }
+
+  async getRecentWCLReport(user: any): Promise<any> {
+    try {
+      const studentDetails = await this.studentsService.getStudentDetails({ studentId: user.userId });
+      const latestWCLExams = await this.examModel
+        .find({ examType: EXAM_TYPES.WCL, isCompleted: true, levelId: studentDetails.levelId })
+        .select('_id name description examDate duration')
+        .sort({ examDate: -1 })
+        .limit(1);
+      const recentWCLExam = latestWCLExams?.[0];
+      const examDetails = await this.getExamResults(recentWCLExam._id, '10');
+      return examDetails;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal server error!');
+    }
+  }
+
+  async getExamResults(examId: string, limit: string): Promise<any> {
+    try {
+      const resultLimit = limit === 'ALL' ? 100 : parseInt(limit);
+      const examResults = this.resultsModel
+        .find({ examId: Types.ObjectId(examId) })
+        .populate('studentDetails', 'name')
+        .populate('examDetails', 'name')
+        .limit(resultLimit);
+      return examResults;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal server error!');
+    }
+  }
+
+  async getWCLStarDetails(user: any): Promise<any> {
+    try {
+      const userDetails = await this.studentsService.getStudentDetails({ studentId: user.userId });
+      const latestWCLExams = await this.examModel
+        .find({ examType: EXAM_TYPES.WCL, isCompleted: true, levelId: userDetails.levelId })
+        .sort({ examDate: -1 })
+        .limit(1);
+      if (!latestWCLExams || latestWCLExams.length === 0) {
+        return {};
+      }
+      const latestWCLExam = latestWCLExams[0];
+
+      const wclStarResult = await this.resultsModel.findOne({ examId: latestWCLExam._id, rank: 1 }).populate('examDetails', 'name');
+      const studentDetails = await this.studentsService.getStudentDetails({ studentId: wclStarResult.userId });
+
+      return {
+        studentDetails: {
+          name: studentDetails.name,
+          profileImage: studentDetails.profileImage,
+          level: studentDetails?.levelDetails?.name,
+        },
+        result: wclStarResult,
+      };
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal server error!');
+    }
+  }
+
+  @Cron(CronExpression.EVERY_5_SECONDS) // '0 */2 * * * *'
+  async resultPreparationCron(): Promise<void> {
+    const currentTime = moment.tz(APP_TIMEZONE);
+    const examsForResultPreparation = await this.resultsQueueModel.find({
+      status: RESULT_QUEUE_STATUS.NOT_PREPARED,
+      preparationTime: { $lte: currentTime.toDate() },
+    });
+    examsForResultPreparation.map(async examForResultPreparation => {
+      const attendees = await this.answersModel.find({
+        examId: examForResultPreparation.examId,
+        examCompletedOn: { $exists: true },
+      });
+      const examDetails = await this.examModel.findOne({ _id: examForResultPreparation.examId });
+
+      const existingResult = await this.resultsModel.findOne({ examId: examDetails._id });
+      if (existingResult) return;
+
+      // Finding total marks
+      let totalMarks = 0;
+      let totalQuestions = 0;
+      Object.values(examDetails.splitUps).map(splitUps => {
+        splitUps.map(splitUp => {
+          totalMarks += splitUp?.questions * splitUp?.marks || 0;
+          totalQuestions += splitUp?.questions || 0;
+        });
+      });
+
+      let resultsArray = [];
+
+      attendees.map(examAnswers => {
+        const answeredQuestions = examAnswers?.answers?.length;
+        const correctAnswers = examAnswers?.answers?.filter?.(answer => answer?.isCorrectAnswer)?.length || 0;
+        const inCorrectAnswers = answeredQuestions - correctAnswers;
+        const scoredMarks = getScoredMarks(examDetails, examAnswers);
+        const timeTaken = getFormattedNumber(
+          examAnswers?.answers?.reduce?.((acc, cur) => cur.timeTaken + acc, 0),
+          0,
+        );
+        const speed = parseFloat(((answeredQuestions / timeTaken) * 60).toFixed(2));
+        const result = {
+          examId: examDetails._id,
+          examType: examDetails.examType,
+          userId: examAnswers.userId,
+          totalQuestions: totalQuestions,
+          totalMarks: totalMarks,
+          accuracy: parseFloat(((correctAnswers / totalQuestions) * 100).toFixed(2)),
+          answeredQuestions,
+          correctAnswers,
+          inCorrectAnswers,
+          timeTaken: timeTaken,
+          percentile: 0,
+          rank: 0,
+          scoredMarks,
+          speed,
+        };
+        resultsArray.push(result);
+      });
+
+      // Update the percentile
+      resultsArray.map((result, index) => {
+        let percentile = 0;
+        const noOfAttendeesBehindOrEqual = resultsArray.filter((r, i) => i !== index && r.scoredMarks <= result.scoredMarks).length;
+        percentile = parseFloat(((noOfAttendeesBehindOrEqual / resultsArray.length) * 100).toFixed(2));
+        result.percentile = percentile;
+      });
+
+      // Update the rank
+      resultsArray = resultsArray.sort((a, b) => (a.percentile > b.percentile ? -1 : 1));
+      resultsArray.map((result, index) => {
+        const rank = index + 1;
+        result.rank = rank;
+        if (examDetails.examType === EXAM_TYPES.WCL && rank === 1) {
+          result.isWCLStar = true;
+        }
+        if (examDetails.examType === EXAM_TYPES.ACL && [1, 2, 3].includes(rank)) {
+          result.isACLStar = true;
+        }
+      });
+
+      this.resultsModel.insertMany(resultsArray);
+      await this.resultsQueueModel.updateOne({ examId: examForResultPreparation.examId }, { status: RESULT_QUEUE_STATUS.COMPLETED });
+      examDetails.isCompleted = true;
+      examDetails.save();
+    });
   }
 }

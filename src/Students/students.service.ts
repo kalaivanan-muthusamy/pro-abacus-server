@@ -12,6 +12,7 @@ import { BatchesService } from './../Batches/batches.service';
 import { MailService } from './../Mail/mail.service';
 import { StudentEmailVerificationDTO } from './dto/StudentEmailVerificationDTO';
 import { ResetPasswordDTO } from './dto/ResetPasswordDTO';
+import { LevelsService } from './../Levels/levels.service';
 
 @Injectable()
 export class StudentsService {
@@ -20,6 +21,7 @@ export class StudentsService {
     private readonly studentModel: Model<StudentsModel>,
     @Inject(forwardRef(() => BatchesService))
     private readonly batchesService: BatchesService,
+    private readonly levelsService: LevelsService,
     private readonly mailService: MailService,
   ) {}
 
@@ -134,6 +136,7 @@ export class StudentsService {
         email: studentRegisterDTO.email,
         password: encryptedPassword,
         gender: studentRegisterDTO.gender,
+        levelId: Types.ObjectId(studentRegisterDTO.levelId),
         age: studentRegisterDTO.age,
         emailVerificationHash,
       };
@@ -160,11 +163,10 @@ export class StudentsService {
 
   async getStudentDetails({ studentId }): Promise<any> {
     try {
-      const studentResponse: any = await this.studentModel.findOne({ _id: Types.ObjectId(studentId) }).lean();
-      if (studentResponse?.batchId) {
-        const batchDetails = await this.batchesService.getBatchDetails(studentResponse?.batchId.toHexString());
-        studentResponse.batchDetails = batchDetails;
-      }
+      const studentResponse: any = await this.studentModel
+        .findOne({ _id: Types.ObjectId(studentId) })
+        .populate('batchDetails', 'batchNumber,name')
+        .populate('levelDetails', 'name');
       return studentResponse;
     } catch (err) {
       console.error(err);
@@ -209,6 +211,18 @@ export class StudentsService {
       if (studentData?.password) {
         const encryptedPassword = bcyrpt.hashSync(studentData?.password, parseInt(process.env.PASSWORD_HASH_SALT_ROUND));
         studentDetails.password = encryptedPassword;
+      }
+
+      if (studentData?.levelId && studentData?.levelId !== studentDetails?.levelId?.toHexString()) {
+        // Validate if the level is higher that current level
+        const allLevels = await this.levelsService.getAllLevels();
+        const currentLevel = allLevels.find(level => level?._id?.toHexString?.() === studentDetails?.levelId?.toHexString?.());
+        const newLevel = allLevels.find(level => level?._id?.toHexString?.() === studentData?.levelId);
+        if (newLevel?.orderValue > currentLevel?.orderValue) {
+          // TODO - The student must complete at-least two WCL on current level to upgrade to next level
+          console.info('Need validation');
+        }
+        studentDetails.levelId = studentData?.levelId;
       }
 
       studentDetails.save();

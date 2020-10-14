@@ -68,7 +68,7 @@ export class NotificationsService {
 
     let toFilter = [];
     if (user.role === ROLES.STUDENT) {
-      toFilter = [userDetails.batchId, userDetails._id];
+      toFilter = [userDetails.batchId, userDetails.levelId, userDetails._id];
     } else if (user.role === ROLES.TEACHER) {
       toFilter = [user.userId];
     }

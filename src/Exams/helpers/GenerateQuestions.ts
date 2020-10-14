@@ -3,31 +3,31 @@ import { MATH_TYPE } from 'src/constants';
 import { ExamSplitUpInterface } from '../exams.schema';
 import { SPLITUP_CATEGORY } from 'src/constants';
 
-export function generateAllQuestions(splitUps: ExamSplitUpInterface): any {
+export function generateAllQuestions(splitUps: ExamSplitUpInterface, negativeMarks = false): any {
   let questions = [];
   Object.keys(splitUps).map(categoryKey => {
     const splitUp = splitUps[categoryKey];
-    questions.push(...generateQuestions(categoryKey, splitUp));
+    questions.push(...generateQuestions(categoryKey, splitUp, negativeMarks));
   });
   questions = questions.map((question, index) => ({ questionNo: ++index, ...question }));
   return questions;
 }
 
-export function generateQuestions(category: string, splitUps: any): Array<any> {
+export function generateQuestions(category: string, splitUps: any, negativeMarks: boolean): Array<any> {
   const questions = [];
   splitUps.map(questionConfig => {
     if (category === SPLITUP_CATEGORY.ADDITION_AND_SUBTRACTION) {
-      questions.push(...generateIndividualQuestion(MATH_TYPE.ADDITION_AND_SUBTRACTION, questionConfig));
+      questions.push(...generateIndividualQuestion(MATH_TYPE.ADDITION_AND_SUBTRACTION, questionConfig, negativeMarks));
     } else if (category === SPLITUP_CATEGORY.MULTIPLICATION) {
-      questions.push(...generateIndividualQuestion(MATH_TYPE.MULTIPLICATION, questionConfig));
+      questions.push(...generateIndividualQuestion(MATH_TYPE.MULTIPLICATION, questionConfig, negativeMarks));
     } else if (category === SPLITUP_CATEGORY.DIVISION) {
-      questions.push(...generateIndividualQuestion(MATH_TYPE.DIVISION, questionConfig));
+      questions.push(...generateIndividualQuestion(MATH_TYPE.DIVISION, questionConfig, negativeMarks));
     }
   });
   return questions;
 }
 
-function generateIndividualQuestion(type: string, questionConfig: any): Array<any> {
+function generateIndividualQuestion(type: string, questionConfig: any, negativeMarks: boolean): Array<any> {
   const questions = [];
   switch (type) {
     case MATH_TYPE.ADDITION_AND_SUBTRACTION: {
@@ -42,6 +42,8 @@ function generateIndividualQuestion(type: string, questionConfig: any): Array<an
           rows: questionConfig.rows,
           rowValues: rowValues,
           answer: getAnswer(type, rowValues),
+          mark: questionConfig?.marks,
+          negativeMark: negativeMarks ? questionConfig?.marks : undefined,
         });
       });
       break;
@@ -56,6 +58,8 @@ function generateIndividualQuestion(type: string, questionConfig: any): Array<an
           multiplierDigits: questionConfig.multiplierDigits,
           rowValues: rowValues,
           answer: getAnswer(type, rowValues),
+          mark: questionConfig?.marks,
+          negativeMark: negativeMarks ? questionConfig?.marks : undefined,
         });
       });
       break;
@@ -88,6 +92,8 @@ function generateIndividualQuestion(type: string, questionConfig: any): Array<an
           divisorDigits: questionConfig.divisorDigits,
           rowValues: rowValues,
           answer: getAnswer(type, rowValues),
+          mark: questionConfig?.marks,
+          negativeMark: negativeMarks ? questionConfig?.marks : undefined,
         });
       });
       break;

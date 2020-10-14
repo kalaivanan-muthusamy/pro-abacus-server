@@ -46,7 +46,7 @@ export class TeachersService {
         subject: 'Thanks for registering with Pro Abacus',
         html: `<p>Thanks for registering with Pro Abacus<p>
           <p>Click the blow link to verify your email and proceed to login</p>
-          <p><a href='https://proabacus.com/email-verify/teachers/${encodeURIComponent(
+          <p><a href='https://proabacus.com/email-verify/teacher/${encodeURIComponent(
             teacherRegistrationDTO.email,
           )}/${emailVerificationHash}'>Verify Email</a></p>`,
       });

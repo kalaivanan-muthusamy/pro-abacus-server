@@ -18,6 +18,12 @@ export class UpdateLevelDTO {
   @IsString()
   readonly name: string;
 
+  @ApiProperty()
+  @IsOptional()
+  @IsNotEmpty()
+  @Validate(IsNumberString)
+  readonly orderValue: number;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsNotEmpty()
