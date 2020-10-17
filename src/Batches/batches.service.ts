@@ -300,7 +300,7 @@ export class BatchesService {
             .tz('Asia/Calcutta')
             .add(5, 'days')
             .toDate(),
-          message: `You batch request for ${batchDetails.name} has been ${ucFirst(batchRequestDetails.status)}`,
+          message: `Your batch request for ${batchDetails.name} has been ${ucFirst(batchRequestDetails.status)}`,
           notificationDate: moment.tz('Asia/Calcutta').toDate(),
           senderId: batchDetails.teacherId,
           senderRole: ROLES.TEACHER,
@@ -316,7 +316,7 @@ export class BatchesService {
             .tz('Asia/Calcutta')
             .add(5, 'days')
             .toDate(),
-          message: `You batch invite for ${batchDetails.name} has been ${ucFirst(batchRequestDetails.status)} by ${studentDetails.name}`,
+          message: `Your batch invite for ${batchDetails.name} has been ${ucFirst(batchRequestDetails.status)} by ${studentDetails.name}`,
           notificationDate: moment.tz('Asia/Calcutta').toDate(),
           senderId: user.userId,
           senderRole: ROLES.STUDENT,

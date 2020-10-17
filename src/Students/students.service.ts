@@ -13,6 +13,7 @@ import { MailService } from './../Mail/mail.service';
 import { StudentEmailVerificationDTO } from './dto/StudentEmailVerificationDTO';
 import { ResetPasswordDTO } from './dto/ResetPasswordDTO';
 import { LevelsService } from './../Levels/levels.service';
+import { ExamService } from './../Exams/exams.service';
 
 @Injectable()
 export class StudentsService {
@@ -21,6 +22,8 @@ export class StudentsService {
     private readonly studentModel: Model<StudentsModel>,
     @Inject(forwardRef(() => BatchesService))
     private readonly batchesService: BatchesService,
+    @Inject(forwardRef(() => ExamService))
+    private readonly examService: ExamService,
     private readonly levelsService: LevelsService,
     private readonly mailService: MailService,
   ) {}
@@ -165,7 +168,7 @@ export class StudentsService {
     try {
       const studentResponse: any = await this.studentModel
         .findOne({ _id: Types.ObjectId(studentId) })
-        .populate('batchDetails', 'batchNumber,name')
+        .populate('batchDetails', 'batchNumber name')
         .populate('levelDetails', 'name');
       return studentResponse;
     } catch (err) {
@@ -219,10 +222,18 @@ export class StudentsService {
         const currentLevel = allLevels.find(level => level?._id?.toHexString?.() === studentDetails?.levelId?.toHexString?.());
         const newLevel = allLevels.find(level => level?._id?.toHexString?.() === studentData?.levelId);
         if (newLevel?.orderValue > currentLevel?.orderValue) {
-          // TODO - The student must complete at-least two WCL on current level to upgrade to next level
-          console.info('Need validation');
+          const levelToValidate = allLevels.find(level => level.orderValue === newLevel?.orderValue - 1);
+          const isValid = await this.examService.getLevelUpValidation(studentDetails?._id, levelToValidate?._id);
+          if (!isValid) {
+            throw new HttpException(
+              "Couldn't update to the new level. You must complete 2+ WCL with 50+ percentile to upgrade to next level",
+              400,
+            );
+          }
+          studentDetails.levelId = studentData?.levelId;
+        } else {
+          studentDetails.levelId = studentData?.levelId;
         }
-        studentDetails.levelId = studentData?.levelId;
       }
 
       studentDetails.save();

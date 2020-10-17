@@ -13,7 +13,7 @@ import { ROLES } from './../constants';
 import { StudentsService } from './../Students/students.service';
 import { NotificationsService } from './../Notifications/notifications.service';
 import { NOTIFICATION_AUDIENCES } from './../constants';
-import { APP_TIMEZONE, EXAM_BUFFER_TIME } from './../configs';
+import { APP_TIMEZONE, EXAM_BUFFER_TIME, WCL_PASS_PERCENTILE } from './../configs';
 import { LevelsService } from './../Levels/levels.service';
 import { LevelsModel } from 'src/Levels/levels.schema';
 import { forwardRef } from '@nestjs/common';
@@ -30,6 +30,7 @@ import { ResultsModel } from './exams.schema';
 import { getScoredMarks } from './helpers/GetScoredMarks';
 import { getFormattedNumber } from './../Helpers/Math/index';
 import { getAverageAccuracyFromResult } from './exams.helper';
+import { STUDENT_LEVELUP_WCL_PASS_LIMIT } from './../configs';
 
 @Injectable()
 export class ExamService {
@@ -676,6 +677,16 @@ export class ExamService {
       if (err instanceof HttpException) throw err;
       throw new InternalServerErrorException('Internal server error!');
     }
+  }
+
+  async getLevelUpValidation(studentId: string, levelId: string): Promise<boolean> {
+    const WCLResults: any = await this.resultsModel.find({ userId: Types.ObjectId(studentId) }).populate('examDetails', '_id, levelId');
+    const currentLevelWCLResults = WCLResults.filter(
+      result =>
+        result?.examDetails?.levelId?.toHexString() === Types.ObjectId(levelId).toHexString() && result?.percentile >= WCL_PASS_PERCENTILE,
+    );
+    if (currentLevelWCLResults?.length >= STUDENT_LEVELUP_WCL_PASS_LIMIT) return true;
+    return false;
   }
 
   @Cron(CronExpression.EVERY_5_SECONDS) // '0 */2 * * * *'
