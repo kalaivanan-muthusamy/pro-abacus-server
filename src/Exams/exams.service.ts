@@ -50,10 +50,12 @@ export class ExamService {
 
   async generateExam(user: any, examGenerationDTO: GenerateExamDTO): Promise<any> {
     try {
-      if (examGenerationDTO.examType == EXAM_TYPES.WCL) {
+      if (examGenerationDTO.examType === EXAM_TYPES.WCL) {
         return await this.generateWCLExam(user, examGenerationDTO);
-      } else if (examGenerationDTO.examType == EXAM_TYPES.ACL) {
+      } else if (examGenerationDTO.examType === EXAM_TYPES.ACL) {
         return await this.generateACLExam(user, examGenerationDTO);
+      } else if (examGenerationDTO.examType === EXAM_TYPES.ASSESSMENT) {
+        return await this.generateAssessmentExam(user, examGenerationDTO);
       } else {
         const splitUps = JSON.parse(examGenerationDTO.splitUps);
         const newExam = {
@@ -61,41 +63,69 @@ export class ExamService {
           examCategory: 'SIMPLE_ABACUS_EXAM',
           splitUps,
           questions: generateAllQuestions(splitUps),
-          name: examGenerationDTO.name,
+          name: examGenerationDTO.name || moment.tz(APP_TIMEZONE).format('DD-MMM-YYYY HH:mm'),
           description: examGenerationDTO.description,
-          examDate: examGenerationDTO.examDate ? moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate() : undefined,
+          examDate: examGenerationDTO.examDate ? moment.tz(examGenerationDTO.examDate, APP_TIMEZONE).toDate() : undefined,
           batchIds: <Types.ObjectId[]>(<unknown>examGenerationDTO.batchIds?.split(',')) || undefined,
           duration: examGenerationDTO.duration,
-          // TODO - To be removed?
-          levels: <Types.ObjectId[]>(<unknown>examGenerationDTO.levelIds?.split(',')) || undefined,
-          resultDelay: examGenerationDTO.resultDelay,
           userId: user.userId,
         };
         const examResponse = await this.examModel.create(newExam);
-
-        // Create Notification for ASSESSMENT EXAM
-        if (examGenerationDTO.examType === EXAM_TYPES.ASSESSMENT) {
-          const examTime = moment.tz(examResponse.examDate, 'Asia/Calcutta').format('DD-MMM-YYYY H:mm:ss');
-          this.notificationsService.createNotification({
-            senderRole: user.role,
-            senderId: user.userId,
-            audience: NOTIFICATION_AUDIENCES.STUDENTS,
-            isBatchNotification: true,
-            to: <Types.ObjectId[]>(<unknown>examGenerationDTO.batchIds?.split(',')),
-            message: `An Assessment has been scheduled by your teacher on ${examTime}`,
-            examType: examGenerationDTO.examType,
-            examId: examResponse._id,
-            expiryAt: moment
-              .tz(examGenerationDTO.examDate, 'Asia/Calcutta')
-              .add(EXAM_BUFFER_TIME, 'minutes')
-              .toDate(),
-            type: NOTIFICATION_TYPES.EXAM_NOTIFICATION,
-            notificationDate: moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate(),
-          });
-        }
-
         return examResponse;
       }
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async generateAssessmentExam(user: any, examGenerationDTO: GenerateExamDTO): Promise<any> {
+    try {
+      // 1. Create Exam
+      const splitUps = JSON.parse(examGenerationDTO.splitUps);
+      const assessmentExam = {
+        examType: examGenerationDTO.examType,
+        examCategory: 'SIMPLE_ABACUS_EXAM',
+        splitUps,
+        questions: generateAllQuestions(splitUps),
+        name: examGenerationDTO.name,
+        description: examGenerationDTO.description,
+        examDate: examGenerationDTO.examDate ? moment.tz(examGenerationDTO.examDate, APP_TIMEZONE).toDate() : undefined,
+        batchIds: <Types.ObjectId[]>(<unknown>examGenerationDTO.batchIds?.split(',')) || undefined,
+        duration: examGenerationDTO.duration,
+        userId: user.userId,
+      };
+      const examResponse = await this.examModel.create(assessmentExam);
+
+      // 2. Send Notifications
+      const examTime = moment.tz(examResponse.examDate, APP_TIMEZONE).format('DD-MMM-YYYY H:mm:ss');
+      this.notificationsService.createNotification({
+        senderRole: user.role,
+        senderId: user.userId,
+        audience: NOTIFICATION_AUDIENCES.STUDENTS,
+        isBatchNotification: true,
+        to: <Types.ObjectId[]>(<unknown>examGenerationDTO.batchIds?.split(',')),
+        message: `An Assessment has been scheduled by your teacher on ${examTime}`,
+        examType: examGenerationDTO.examType,
+        examId: examResponse._id,
+        expiryAt: moment
+          .tz(examGenerationDTO.examDate, APP_TIMEZONE)
+          .add(EXAM_BUFFER_TIME, 'minutes')
+          .toDate(),
+        type: NOTIFICATION_TYPES.EXAM_NOTIFICATION,
+        notificationDate: moment.tz(examGenerationDTO.examDate, APP_TIMEZONE).toDate(),
+      });
+
+      // 3. Schedule Result preparation
+      const resultPreparationTime = moment
+        .tz(examResponse.examDate, APP_TIMEZONE)
+        .add(examResponse.duration, 'minutes')
+        .add(EXAM_BUFFER_TIME + 3, 'minutes');
+      await this.resultsQueueModel.create({
+        examId: examResponse._id,
+        preparationTime: resultPreparationTime.toDate(),
+      });
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;
@@ -121,15 +151,14 @@ export class ExamService {
             questions: generateAllQuestions(levelDetails.splitUps),
             name: examGenerationDTO.name,
             description: examGenerationDTO.description,
-            examDate: moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate(),
+            examDate: moment.tz(examGenerationDTO.examDate, APP_TIMEZONE).toDate(),
             duration: levelDetails.duration,
-            resultDelay: examGenerationDTO.resultDelay,
             userId: user.userId,
           };
           const examResponse = await this.examModel.create(newExam);
 
           // Create notification
-          const examTime = moment.tz(examResponse.examDate, 'Asia/Calcutta').format('DD-MMM-YYYY H:mm:ss');
+          const examTime = moment.tz(examResponse.examDate, APP_TIMEZONE).format('DD-MMM-YYYY H:mm:ss');
           this.notificationsService.createNotification({
             senderRole: user.role,
             senderId: user.userId,
@@ -140,16 +169,16 @@ export class ExamService {
             examType: examGenerationDTO.examType,
             examId: examResponse._id,
             expiryAt: moment
-              .tz(examGenerationDTO.examDate, 'Asia/Calcutta')
+              .tz(examGenerationDTO.examDate, APP_TIMEZONE)
               .add(EXAM_BUFFER_TIME, 'minutes')
               .toDate(),
             type: NOTIFICATION_TYPES.EXAM_NOTIFICATION,
-            notificationDate: moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate(),
+            notificationDate: moment.tz(examGenerationDTO.examDate, APP_TIMEZONE).toDate(),
           });
 
           // Schedule result preparation queue
           const resultPreparationTime = moment
-            .tz(examResponse.examDate, 'Asia/Calcutta')
+            .tz(examResponse.examDate, APP_TIMEZONE)
             .add(examResponse.duration, 'minutes')
             .add(EXAM_BUFFER_TIME + 3, 'minutes');
           await this.resultsQueueModel.create({
@@ -183,9 +212,8 @@ export class ExamService {
             questions: generateAllQuestions(levelDetails.splitUps, examGenerationDTO.negativeMarks),
             name: examGenerationDTO.name,
             description: examGenerationDTO.description,
-            examDate: examGenerationDTO.examDate ? moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate() : undefined,
+            examDate: examGenerationDTO.examDate ? moment.tz(examGenerationDTO.examDate, APP_TIMEZONE).toDate() : undefined,
             duration: levelDetails.duration,
-            resultDelay: examGenerationDTO.resultDelay,
             negativeMarks: examGenerationDTO.negativeMarks,
             skipQuestions: examGenerationDTO.skipQuestions,
             shuffleQuestions: examGenerationDTO.shuffleQuestions,
@@ -194,7 +222,7 @@ export class ExamService {
           const examResponse = await this.examModel.create(newExam);
 
           // Create notification
-          const examTime = moment.tz(examResponse.examDate, 'Asia/Calcutta').format('DD-MMM-YYYY H:mm:ss');
+          const examTime = moment.tz(examResponse.examDate, APP_TIMEZONE).format('DD-MMM-YYYY H:mm:ss');
           this.notificationsService.createNotification({
             senderRole: user.role,
             senderId: user.userId,
@@ -205,16 +233,16 @@ export class ExamService {
             examType: examGenerationDTO.examType,
             examId: examResponse._id,
             expiryAt: moment
-              .tz(examGenerationDTO.examDate, 'Asia/Calcutta')
+              .tz(examGenerationDTO.examDate, APP_TIMEZONE)
               .add(EXAM_BUFFER_TIME, 'minutes')
               .toDate(),
             type: NOTIFICATION_TYPES.EXAM_NOTIFICATION,
-            notificationDate: moment.tz(examGenerationDTO.examDate, 'Asia/Calcutta').toDate(),
+            notificationDate: moment.tz(examGenerationDTO.examDate, APP_TIMEZONE).toDate(),
           });
 
           // Schedule result preparation
           const resultPreparationTime = moment
-            .tz(examResponse.examDate, 'Asia/Calcutta')
+            .tz(examResponse.examDate, APP_TIMEZONE)
             .add(examResponse.duration, 'minutes')
             .add(EXAM_BUFFER_TIME + 3, 'minutes');
           await this.resultsQueueModel.create({
@@ -256,8 +284,8 @@ export class ExamService {
         // console.log(studentDetails);
 
         // Validate the exam date
-        const examDateTime = moment.tz(exam.examDate, 'Asia/Calcutta');
-        const currentDateTime = moment.tz('Asia/Calcutta');
+        const examDateTime = moment.tz(exam.examDate, APP_TIMEZONE);
+        const currentDateTime = moment.tz(APP_TIMEZONE);
         if (currentDateTime.isBefore(examDateTime)) {
           const timeDifference = examDateTime.diff(currentDateTime, 'minutes');
           if (timeDifference < 0) {
@@ -284,7 +312,7 @@ export class ExamService {
         userId: user.userId,
         examId: exam._id,
         examType: exam.examType,
-        examStartedOn: moment.tz('Asia/Calcutta').toDate(),
+        examStartedOn: moment.tz(APP_TIMEZONE).toDate(),
         answers: [],
       });
 
@@ -298,15 +326,50 @@ export class ExamService {
 
   async completeExam(user: any, examId: string): Promise<any> {
     try {
-      const exam = await this.examModel.findOne({ _id: Types.ObjectId(examId) });
-      if (!exam) throw new HttpException('This exam is not available for you to complete or already expired', 400);
+      const examDetails = await this.examModel.findOne({ _id: Types.ObjectId(examId) });
+      if (!examDetails) throw new HttpException('This exam is not available for you to complete or already expired', 400);
 
-      const answers = await this.answersModel.findOne({ examId: Types.ObjectId(examId), userId: Types.ObjectId(user.userId) });
-      if (!answers) throw new HttpException('This exam is not available for you to complete or already expired', 400);
+      const examAnswers = await this.answersModel.findOne({ examId: Types.ObjectId(examId), userId: Types.ObjectId(user.userId) });
+      if (!examAnswers) throw new HttpException('This exam is not available for you to complete or already expired', 400);
 
-      answers.examCompletedOn = moment.tz('Asia/Calcutta').toDate();
-      await answers.save();
-      return exam;
+      examAnswers.examCompletedOn = moment.tz(APP_TIMEZONE).toDate();
+      await examAnswers.save();
+
+      if (examDetails?.examType === EXAM_TYPES.SELF_TEST) {
+        // For self test, save the stats in "results" collections
+        let totalMarks = 0;
+        let totalQuestions = 0;
+        Object.values(examDetails.splitUps).map(splitUps => {
+          splitUps.map(splitUp => {
+            totalMarks += splitUp?.questions * splitUp?.marks || 0;
+            totalQuestions += splitUp?.questions || 0;
+          });
+        });
+        const answeredQuestions = examAnswers?.answers?.length;
+        const correctAnswers = examAnswers?.answers?.filter?.(answer => answer?.isCorrectAnswer)?.length || 0;
+        const inCorrectAnswers = answeredQuestions - correctAnswers;
+        const timeTaken = getFormattedNumber(
+          examAnswers?.answers?.reduce?.((acc, cur) => cur.timeTaken + acc, 0),
+          0,
+        );
+        const speed = parseFloat(((answeredQuestions / timeTaken) * 60).toFixed(2));
+        this.resultsModel.create({
+          examId: examDetails._id,
+          examType: examDetails.examType,
+          userId: examAnswers.userId,
+          totalMarks: totalMarks,
+          totalQuestions: totalQuestions,
+          scoredMarks: getScoredMarks(examDetails, examAnswers),
+          answeredQuestions: answeredQuestions,
+          correctAnswers,
+          inCorrectAnswers,
+          accuracy: parseFloat(((correctAnswers / totalQuestions) * 100).toFixed(2)),
+          speed,
+          timeTaken,
+        });
+      }
+
+      return examDetails;
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;
@@ -453,6 +516,63 @@ export class ExamService {
     }
   }
 
+  async getCompleteReport(userId: string, examId: string): Promise<any> {
+    try {
+      const examReport: any = await this.resultsModel
+        .findOne({ userId: Types.ObjectId(userId), examId: Types.ObjectId(examId) })
+        .populate('examDetails')
+        .lean();
+      if (!examReport) throw new HttpException("Couldn't get the detailed report for this exam", 400);
+
+      const answerDetails = await this.answersModel.findOne({ userId: Types.ObjectId(userId), examId: Types.ObjectId(examId) });
+      examReport.answerDetails = answerDetails;
+      console.info('answerDetails', answerDetails);
+      return examReport;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal server error!');
+    }
+  }
+
+  async getExamReport(userId: string, query: any): Promise<any> {
+    try {
+      const examType = query.examType;
+      const examId = query.examId;
+
+      const filter: any = { userId: Types.ObjectId(userId), examType };
+      if (examId) {
+        filter.examId = Types.ObjectId(examId);
+      }
+      let examReport: any = await this.resultsModel.find(filter);
+      if (examId && !examReport) throw new HttpException("Couldn't get the result for this exam", 400);
+
+      if (examId) {
+        examReport = examReport?.[0];
+        return {
+          exams: examReport,
+          participated: 1,
+          speed: examReport.speed,
+          accuracy: examReport.accuracy,
+          duration: examReport.timeTaken,
+        };
+      } else {
+        return {
+          exams: examReport,
+          participated: examReport?.length,
+          avgSpeed: getAverageSpeedFromResult(examReport),
+          avgAccuracy: getAverageAccuracyFromResult(examReport),
+          avgDuration: getAverageDurationFromResult(examReport),
+          totalStars: examReport?.filter?.(result => result.isWCLStar).length,
+        };
+      }
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal server error!');
+    }
+  }
+
   async getCompletedExamDetails(examType: string, user: any): Promise<any> {
     try {
       const filter: any = { examType, isCompleted: true };
@@ -487,13 +607,19 @@ export class ExamService {
     }
   }
 
-  async getExamResults(examId: string, limit: string): Promise<any> {
+  async getExamResults(examId: string = null, limit = '10', examType: string = null, userId: string = null): Promise<any> {
     try {
+      const filter: any = {};
+      if (examId) filter.examId = Types.ObjectId(examId);
+      if (examType && !examId) {
+        filter.examType = examType;
+        filter.userId = Types.ObjectId(userId);
+      }
       const resultLimit = limit === 'ALL' ? 100 : parseInt(limit);
       const examResults = this.resultsModel
-        .find({ examId: Types.ObjectId(examId) })
+        .find(filter)
         .populate('studentDetails', 'name')
-        .populate('examDetails', 'name')
+        .populate('examDetails', 'name examDate')
         .limit(resultLimit);
       return examResults;
     } catch (err) {
@@ -526,6 +652,25 @@ export class ExamService {
         },
         result: wclStarResult,
       };
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal server error!');
+    }
+  }
+
+  async getRecentExams(examType: string, user: any): Promise<any> {
+    try {
+      const studentDetails = await this.studentsService.getStudentDetails({ studentId: user.userId });
+      const recentExams = await this.resultsModel
+        .find({
+          userId: studentDetails._id,
+          examType,
+        })
+        .populate('examDetails', '_id name')
+        .sort({ createdAt: -1 })
+        .limit(10);
+      return recentExams;
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;

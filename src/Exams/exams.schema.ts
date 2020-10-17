@@ -117,9 +117,6 @@ export const ExamSchema = new Schema(
     duration: {
       type: Number,
     },
-    resultDelay: {
-      type: Number,
-    },
     negativeMarks: {
       type: Boolean,
     },
@@ -169,7 +166,6 @@ export interface ExamModel extends Document {
   name?: string;
   description?: string;
   duration?: number;
-  resultDelay?: number;
   negativeMarks?: boolean;
   shuffleQuestions?: boolean;
   skipQuestions?: boolean;
@@ -313,11 +309,9 @@ export const ResultsSchema = new Schema(
     },
     percentile: {
       type: Number,
-      required: true,
     },
     rank: {
       type: Number,
-      required: true,
     },
     isWCLStar: {
       type: Boolean,
@@ -368,8 +362,8 @@ export interface ResultsModel extends Document {
   accuracy: number;
   speed: number;
   timeTaken: number;
-  percentile: number;
-  rank: number;
+  percentile?: number;
+  rank?: number;
   isWCLStar?: boolean;
   isACLStar?: boolean;
 }

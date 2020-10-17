@@ -187,6 +187,15 @@ export class BatchesService {
       const batchDetails = await this.batchModel.findOne({ _id: Types.ObjectId(joinBatchDTO.batchId) });
       if (!batchDetails) throw new HttpException("Couldn't find the batch details", 400);
 
+      // Check if batch request is already present
+      const existingBatchRequest = await this.batchRequestsModel.findOne({
+        batchId: batchDetails._id,
+        studentId: Types.ObjectId(user.userId),
+        requestType: BATCH_REQUEST_TYPE.JOIN,
+        expiryAt: { $gt: moment.tz('Asia/Calcutta').toDate() },
+      });
+      if (existingBatchRequest) throw new HttpException('This batch request is already initiated', 400);
+
       const studentDetails = await this.studentsService.getStudentDetails({ studentId: user.userId });
 
       const newBatchJoinRequest = {

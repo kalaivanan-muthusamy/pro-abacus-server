@@ -46,11 +46,6 @@ export class GenerateExamDTO {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Validate(IsNumberString)
-  readonly resultDelay: number;
-
-  @ApiPropertyOptional()
-  @IsOptional()
   @IsBoolean()
   readonly negativeMarks: boolean;
 

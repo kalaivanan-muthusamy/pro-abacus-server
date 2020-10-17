@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import { Controller, Post, Body, Get, Query, UseGuards, SetMetadata, Req } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { ExamService } from './exams.service';
@@ -61,6 +62,22 @@ export class ExamController {
     return await this.examService.getExamReports({ userId: user.userId });
   }
 
+  @Get('/detailed-report')
+  @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getCompleteReport(@Query('examId') examId: string, @Req() request: Request): Promise<any> {
+    const user: any = request.user;
+    return await this.examService.getCompleteReport(user.userId, examId);
+  }
+
+  @Get('/report')
+  @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getExamReport(@Query() query: any, @Req() request: Request): Promise<any> {
+    const user: any = request.user;
+    return await this.examService.getExamReport(user.userId, query);
+  }
+
   @Get('/acl-details')
   @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER, ROLES.ADMIN])
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -80,8 +97,22 @@ export class ExamController {
   @Get('/results')
   @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER, ROLES.ADMIN])
   @UseGuards(JwtAuthGuard, RolesGuard)
-  async getExamResults(@Query('examId') examId: string, @Query('limit') limit: string): Promise<any> {
-    return await this.examService.getExamResults(examId, limit);
+  async getExamResults(
+    @Query('examId') examId: string,
+    @Query('examType') examType: string,
+    @Query('limit') limit: string,
+    @Req() request: Request,
+  ): Promise<any> {
+    const user: any = request.user;
+    return await this.examService.getExamResults(examId, limit, examType, user.userId);
+  }
+
+  @Get('/recent-exams')
+  @SetMetadata('roles', [ROLES.STUDENT])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getRecentExams(@Query('examType') examType: string, @Req() request: Request): Promise<any> {
+    const user = request.user;
+    return await this.examService.getRecentExams(examType, user);
   }
 
   @Get('/recent-wcl-report')
