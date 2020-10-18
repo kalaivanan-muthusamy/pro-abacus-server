@@ -599,8 +599,11 @@ export class ExamService {
         .sort({ examDate: -1 })
         .limit(1);
       const recentWCLExam = latestWCLExams?.[0];
-      const examDetails = await this.getExamResults(recentWCLExam._id, '10');
-      return examDetails;
+      if (recentWCLExam) {
+        const examDetails = await this.getExamResults(recentWCLExam._id, '10');
+        return examDetails;
+      }
+      return null;
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;

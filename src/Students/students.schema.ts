@@ -1,5 +1,12 @@
 import { Schema, Document, Types } from 'mongoose';
 
+const SubscriptionDetails = new Schema({
+  expiryAt: {
+    type: Date,
+    required: true,
+  },
+});
+
 export const StudentsSchema = new Schema(
   {
     name: {
@@ -46,6 +53,10 @@ export const StudentsSchema = new Schema(
     forgotPasswordExpiryDate: {
       type: Date,
     },
+    subscriptionDetails: {
+      _id: false,
+      type: SubscriptionDetails,
+    },
   },
   {
     timestamps: true,
@@ -69,6 +80,10 @@ StudentsSchema.virtual('batchDetails', {
   justOne: true,
 });
 
+interface SubscriptionDetailsInterface {
+  expiryAt: Date;
+}
+
 export interface StudentsModel extends Document {
   name: string;
   email: string;
@@ -82,4 +97,5 @@ export interface StudentsModel extends Document {
   emailVerified?: boolean;
   forgotPasswordHash?: string;
   forgotPasswordExpiryDate?: Date;
+  subscriptionDetails?: SubscriptionDetailsInterface;
 }

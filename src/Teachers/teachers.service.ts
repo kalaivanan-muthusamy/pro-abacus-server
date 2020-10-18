@@ -217,4 +217,33 @@ export class TeachersService {
       throw new InternalServerErrorException('Internal Server Error!');
     }
   }
+
+  async getAllTeachers(): Promise<any> {
+    try {
+      const teachers: any = await this.teacherModel.find();
+      return teachers;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async updateSubscriptionDetails({ teacherId, expiryAt }): Promise<any> {
+    try {
+      const teacherDetails = await await this.teacherModel.findOne({ _id: Types.ObjectId(teacherId) });
+      if (!teacherDetails) throw new HttpException("Couldn't find the teacher details", 400);
+      if (teacherDetails?.subscriptionDetails) {
+        teacherDetails.subscriptionDetails.expiryAt = expiryAt;
+      } else {
+        teacherDetails.subscriptionDetails = { expiryAt };
+      }
+      await teacherDetails.save();
+      return teacherDetails;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
 }

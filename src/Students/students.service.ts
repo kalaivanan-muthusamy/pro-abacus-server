@@ -14,6 +14,11 @@ import { StudentEmailVerificationDTO } from './dto/StudentEmailVerificationDTO';
 import { ResetPasswordDTO } from './dto/ResetPasswordDTO';
 import { LevelsService } from './../Levels/levels.service';
 import { ExamService } from './../Exams/exams.service';
+import { NotificationsService } from './../Notifications/notifications.service';
+import { NOTIFICATION_AUDIENCES } from './../constants';
+import { APP_TIMEZONE } from 'src/configs';
+import { ROLES } from 'src/constants';
+import { NOTIFICATION_TYPES } from 'src/constants';
 
 @Injectable()
 export class StudentsService {
@@ -24,6 +29,8 @@ export class StudentsService {
     private readonly batchesService: BatchesService,
     @Inject(forwardRef(() => ExamService))
     private readonly examService: ExamService,
+    @Inject(forwardRef(() => NotificationsService))
+    private readonly notificationService: NotificationsService,
     private readonly levelsService: LevelsService,
     private readonly mailService: MailService,
   ) {}
@@ -250,6 +257,82 @@ export class StudentsService {
     try {
       const students: any = await this.studentModel.find({ email: { $in: emailIds } });
       return students;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async getAllStudents(): Promise<any> {
+    try {
+      const students: any = await this.studentModel
+        .find()
+        .populate('levelDetails')
+        .populate('batchDetails');
+      return students;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async updateSubscriptionDetails({ studentId, expiryAt }): Promise<any> {
+    try {
+      const studentDetails = await await this.studentModel.findOne({ _id: Types.ObjectId(studentId) });
+      if (!studentDetails) throw new HttpException("Couldn't find the student details", 400);
+      if (studentDetails?.subscriptionDetails) {
+        studentDetails.subscriptionDetails.expiryAt = expiryAt;
+      } else {
+        studentDetails.subscriptionDetails = { expiryAt };
+      }
+      await studentDetails.save();
+      return studentDetails;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async getStudentsByBatch(batchId: string): Promise<any> {
+    try {
+      const students = await this.studentModel.find({ batchId: Types.ObjectId(batchId) }).populate('levelDetails', 'name');
+      if (!students) throw new HttpException("Couldn't find the student details", 400);
+
+      return students;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async deleteStudentFromBatch(studentId: string, batchId: string): Promise<any> {
+    try {
+      const student: any = await this.studentModel
+        .findOne({ _id: Types.ObjectId(studentId), batchId: Types.ObjectId(batchId) })
+        .populate('batchDetails');
+      if (!student) throw new HttpException("Couldn't find the student details", 400);
+      student.batchId = undefined;
+      await student.save();
+
+      this.notificationService.createNotification({
+        audience: NOTIFICATION_AUDIENCES.STUDENTS,
+        expiryAt: moment
+          .tz(APP_TIMEZONE)
+          .add(5, 'days')
+          .toDate(),
+        message: 'You have been removed from the current batch',
+        to: [student._id],
+        notificationDate: moment.tz(APP_TIMEZONE).toDate(),
+        senderId: student?.batchDetails?.teacherId,
+        senderRole: ROLES.TEACHER,
+        type: NOTIFICATION_TYPES.INFORMATIONAL_NOTIFICATION,
+      });
+
+      return student;
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;

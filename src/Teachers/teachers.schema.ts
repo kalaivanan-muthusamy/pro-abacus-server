@@ -1,5 +1,12 @@
 import { Schema, Document } from 'mongoose';
 
+const SubscriptionDetails = new Schema({
+  expiryAt: {
+    type: Date,
+    required: true,
+  },
+});
+
 export const TeachersSchema = new Schema(
   {
     name: {
@@ -43,11 +50,19 @@ export const TeachersSchema = new Schema(
     forgotPasswordExpiryDate: {
       type: Date,
     },
+    subscriptionDetails: {
+      _id: false,
+      type: SubscriptionDetails,
+    },
   },
   {
     timestamps: true,
   },
 );
+
+interface SubscriptionDetailsInterface {
+  expiryAt: Date;
+}
 
 export interface TeachersModel extends Document {
   name: string;
@@ -61,4 +76,5 @@ export interface TeachersModel extends Document {
   emailVerified?: boolean;
   forgotPasswordHash?: string;
   forgotPasswordExpiryDate?: Date;
+  subscriptionDetails?: SubscriptionDetailsInterface;
 }

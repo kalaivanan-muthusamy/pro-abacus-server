@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { Controller, Post, Body, SetMetadata, UseGuards, Req, Get, Put, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Post, Body, SetMetadata, UseGuards, Req, Get, Put, UseInterceptors, UploadedFile, Param } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { TeacherRegistrationDTO } from './dto/TeacherRegisterDTO';
 import { TeachersService } from './teachers.service';
@@ -72,5 +72,19 @@ export class TeachersController {
       teacherData: updateTeacherDTO,
       profileImage,
     });
+  }
+
+  @Get('/list')
+  @SetMetadata('roles', [ROLES.ADMIN])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getAllTeachers(): Promise<any> {
+    return this.teachersService.getAllTeachers();
+  }
+
+  @Get('/:userId')
+  @SetMetadata('roles', [ROLES.ADMIN])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getStudentDetails(@Param('userId') userId: string): Promise<any> {
+    return this.teachersService.getTeacherDetails({ teacherId: userId });
   }
 }

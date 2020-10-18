@@ -11,6 +11,7 @@ import { NotificationsModule } from './Notifications/notifications.module';
 import { LevelsModule } from './Levels/levels.module';
 import { MailModule } from './Mail/mail.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { PricingPlansModule } from './PricingPlans/pricingplans.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     NotificationsModule,
     LevelsModule,
     MailModule,
+    PricingPlansModule,
   ],
 })
 export class AppModule {}

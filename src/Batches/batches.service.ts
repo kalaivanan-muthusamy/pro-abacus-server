@@ -18,6 +18,7 @@ import { NOTIFICATION_AUDIENCES } from './../constants';
 import { ucFirst } from './../Helpers/Common/index';
 import { UpdateBatchDTO } from './dto/UpdateBatchDTO';
 import { InviteToBatchDTO } from './dto/InviteToBatchDTO';
+import { DeleteStudentFromBatchDTO } from './dto/DeleteStudentFromBatchDTO';
 
 @Injectable()
 export class BatchesService {
@@ -137,6 +138,35 @@ export class BatchesService {
     }
   }
 
+  async getStudentsByBatch(user: any, batchId: string): Promise<any> {
+    try {
+      const batchDetails = await this.batchModel.findOne({ teacherId: Types.ObjectId(user.userId), _id: Types.ObjectId(batchId) });
+      if (!batchDetails) throw new HttpException("Batch doesn't exist", 400);
+      const students = await this.studentsService.getStudentsByBatch(batchDetails._id);
+      return students;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async deleteStudentFromBatch(user: any, deleteStudentFromBatchDTO: DeleteStudentFromBatchDTO): Promise<any> {
+    try {
+      const batchDetails = await this.batchModel.findOne({
+        teacherId: Types.ObjectId(user.userId),
+        _id: Types.ObjectId(deleteStudentFromBatchDTO.batchId),
+      });
+      if (!batchDetails) throw new HttpException("Batch doesn't exist", 400);
+      await this.studentsService.deleteStudentFromBatch(deleteStudentFromBatchDTO.studentId, batchDetails._id);
+      return {};
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
   async searchBatches(searchBatchDTO: SearchBatchDTO): Promise<any> {
     try {
       const batches = await this.batchModel
@@ -190,6 +220,7 @@ export class BatchesService {
       // Check if batch request is already present
       const existingBatchRequest = await this.batchRequestsModel.findOne({
         batchId: batchDetails._id,
+        status: BATCH_REQUEST_STATUS.PENDING,
         studentId: Types.ObjectId(user.userId),
         requestType: BATCH_REQUEST_TYPE.JOIN,
         expiryAt: { $gt: moment.tz('Asia/Calcutta').toDate() },

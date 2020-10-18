@@ -1,5 +1,5 @@
 import { ApiBearerAuth } from '@nestjs/swagger';
-import { Controller, Post, SetMetadata, UseGuards, Body, Req, Get, Put } from '@nestjs/common';
+import { Controller, Post, SetMetadata, UseGuards, Body, Req, Get, Put, Query, Delete } from '@nestjs/common';
 import { JwtAuthGuard } from './../AuthModule/jwt-auth.guard';
 import { RolesGuard } from './../Helpers/CustomGaurds/roles.guard';
 import { ROLES } from './../constants';
@@ -11,6 +11,7 @@ import { SearchBatchDTO } from './dto/SearchBatchDTO';
 import { AcceptBatchRequestDTO } from './dto/AcceptBatchRequestDTO';
 import { UpdateBatchDTO } from './dto/UpdateBatchDTO';
 import { InviteToBatchDTO } from './dto/InviteToBatchDTO';
+import { DeleteStudentFromBatchDTO } from './dto/DeleteStudentFromBatchDTO';
 
 @ApiBearerAuth()
 @Controller('/api/batches')
@@ -23,6 +24,22 @@ export class BatchesController {
   async getAllBatches(@Req() request: Request): Promise<any> {
     const user = request.user;
     return await this.batchesService.getAllBatches(user);
+  }
+
+  @Get('/students')
+  @SetMetadata('roles', [ROLES.TEACHER])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getStudentsByBatch(@Query('batchId') batchId: string, @Req() request: Request): Promise<any> {
+    const user = request.user;
+    return await this.batchesService.getStudentsByBatch(user, batchId);
+  }
+
+  @Delete('/students')
+  @SetMetadata('roles', [ROLES.TEACHER])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async deleteStudentFromBatch(@Body() deleteStudentFromBatchDTO: DeleteStudentFromBatchDTO, @Req() request: Request): Promise<any> {
+    const user = request.user;
+    return await this.batchesService.deleteStudentFromBatch(user, deleteStudentFromBatchDTO);
   }
 
   @Post('/search')
