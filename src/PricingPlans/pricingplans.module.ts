@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { PricingPlansSchema, TransactionsSchema, SubscriptionHistorySchema } from './pricingplans.schema';
 import { PricingController } from './pricingplans.controller';
@@ -13,8 +13,8 @@ import { TeachersModule } from './../Teachers/teachers.module';
       { name: 'transactions', schema: TransactionsSchema },
       { name: 'subscription-history', schema: SubscriptionHistorySchema },
     ]),
-    StudentsModule,
-    TeachersModule,
+    forwardRef(() => StudentsModule),
+    forwardRef(() => TeachersModule),
   ],
   controllers: [PricingController],
   providers: [PricingPlansService],

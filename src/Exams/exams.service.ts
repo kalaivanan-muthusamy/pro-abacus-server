@@ -31,6 +31,9 @@ import { getScoredMarks } from './helpers/GetScoredMarks';
 import { getFormattedNumber } from './../Helpers/Math/index';
 import { getAverageAccuracyFromResult } from './exams.helper';
 import { STUDENT_LEVELUP_WCL_PASS_LIMIT } from './../configs';
+import { ExamRegistrationsModel } from './exams.schema';
+import { PricingPlansService } from './../PricingPlans/pricingplans.service';
+import { PRICING_PLAN_TYPES } from 'src/constants';
 
 @Injectable()
 export class ExamService {
@@ -43,8 +46,12 @@ export class ExamService {
     private readonly resultsModel: Model<ResultsModel>,
     @InjectModel('resultsQueue')
     private readonly resultsQueueModel: Model<ResultsQueueModel>,
+    @InjectModel('exam-registrations')
+    private readonly examRegistrationsModel: Model<ExamRegistrationsModel>,
     @Inject(forwardRef(() => StudentsService))
     private readonly studentsService: StudentsService,
+    @Inject(forwardRef(() => PricingPlansService))
+    private readonly pricingPlansService: PricingPlansService,
     private readonly notificationsService: NotificationsService,
     private readonly levelsService: LevelsService,
   ) {}
@@ -209,7 +216,10 @@ export class ExamService {
           const newExam = {
             examType: examGenerationDTO.examType,
             examCategory: 'SIMPLE_ABACUS_EXAM',
+            isPaidRegistration: true,
+            registrationRequired: true,
             splitUps: levelDetails.splitUps,
+            levelId: levelDetails._id,
             questions: generateAllQuestions(levelDetails.splitUps, examGenerationDTO.negativeMarks),
             name: examGenerationDTO.name,
             description: examGenerationDTO.description,
@@ -228,8 +238,8 @@ export class ExamService {
             senderRole: user.role,
             senderId: user.userId,
             audience: NOTIFICATION_AUDIENCES.STUDENTS,
-            to: [],
-            toAll: true,
+            to: [Types.ObjectId(levelId)],
+            toAll: false,
             message: `ACL has be scheduled by PRO ABACUS on ${examTime}`,
             examType: examGenerationDTO.examType,
             examId: examResponse._id,
@@ -253,6 +263,34 @@ export class ExamService {
         }),
       );
       return { message: 'WCL scheduled successfully' };
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async registerExam(user: any, examId: string) {
+    try {
+      const currentDate = moment.tz(APP_TIMEZONE);
+      const examDetails = await this.examModel.findOne({ _id: Types.ObjectId(examId), examDate: { $gte: currentDate.toDate() } });
+      if (!examDetails) throw new HttpException('Unable to register for this exam', 400);
+      if (examDetails.registrationRequired && examDetails.isPaidRegistration) {
+        // Get exam price
+        const examPlans = await this.pricingPlansService.getAllPricingPlans(PRICING_PLAN_TYPES.EXAM_PLAN);
+        const pricingDetails = examPlans.find(plan => plan.examType === examDetails.examType);
+        // Create a transaction
+        const transaction = await this.pricingPlansService.createTransaction(user, { pricingPlanId: pricingDetails?._id });
+        console.info('examDetails.levelId', examDetails.levelId);
+        this.examRegistrationsModel.create({
+          examId: examDetails._id,
+          levelId: examDetails.levelId,
+          examType: examDetails.examType,
+          userId: Types.ObjectId(user.userId),
+          transactionId: transaction._id,
+          expiryAt: moment.tz(examDetails.examDate, APP_TIMEZONE).toDate(),
+        });
+      }
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;
@@ -574,12 +612,14 @@ export class ExamService {
     }
   }
 
-  async getCompletedExamDetails(examType: string, user: any): Promise<any> {
+  async getCompletedExamDetails(examType: string, levelId: string, user: any): Promise<any> {
     try {
       const filter: any = { examType, isCompleted: true };
       if (user.role === ROLES.STUDENT) {
         const studentDetails = await this.studentsService.getStudentDetails({ studentId: user.userId });
         filter.levelId = studentDetails.levelId;
+      } else {
+        if (levelId) filter.levelId = Types.ObjectId(levelId);
       }
       const examDetails = this.examModel.find(filter).select('_id name description examDate duration');
       return examDetails;
@@ -675,6 +715,23 @@ export class ExamService {
         .sort({ createdAt: -1 })
         .limit(10);
       return recentExams;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal server error!');
+    }
+  }
+
+  async getRegisteredExams(user: any, examType: string): Promise<any> {
+    try {
+      const registeredExams = await this.examRegistrationsModel
+        .find({
+          userId: Types.ObjectId(user.userId),
+          examType,
+        })
+        .populate('examDetails', 'name description examDate')
+        .populate('levelDetails', 'name');
+      return registeredExams;
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;

@@ -3,3 +3,4 @@ export const APP_TIMEZONE = 'Asia/Calcutta';
 export const DEFAULT_DECIMAL_ROUND = 2;
 export const WCL_PASS_PERCENTILE = 50;
 export const STUDENT_LEVELUP_WCL_PASS_LIMIT = 2;
+export const DEFAULT_NOTIFICATION_EXPIRY_DAYS = 10;

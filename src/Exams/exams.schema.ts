@@ -103,6 +103,14 @@ export const ExamSchema = new Schema(
       type: String,
       required: true,
     },
+    registrationRequired: {
+      type: Boolean,
+      default: false,
+    },
+    isPaidRegistration: {
+      type: Boolean,
+      default: false,
+    },
     examCategory: {
       type: String,
       default: 'SIMPLE_ABACUS_EXAM',
@@ -159,6 +167,8 @@ export const ExamSchema = new Schema(
 export interface ExamModel extends Document {
   userId?: Types.ObjectId;
   examType: string;
+  registrationRequired?: boolean;
+  isPaidRegistration?: boolean;
   examCategory: string;
   examDate?: Date;
   batchIds?: Types.ObjectId[];
@@ -387,4 +397,60 @@ export interface ResultsQueueModel extends Document {
   examId: Types.ObjectId;
   preparationTime: Date;
   status?: string;
+}
+
+export const ExamRegistrationsSchema = new Schema(
+  {
+    examId: {
+      type: Types.ObjectId,
+      required: true,
+    },
+    levelId: {
+      type: Types.ObjectId,
+    },
+    examType: {
+      type: String,
+      required: true,
+    },
+    userId: {
+      type: Types.ObjectId,
+      required: true,
+    },
+    transactionId: {
+      type: Types.ObjectId,
+    },
+    expiryAt: {
+      type: Date,
+      required: true,
+    },
+  },
+  {
+    timestamps: true,
+    toJSON: {
+      virtuals: true,
+    },
+  },
+);
+
+ExamRegistrationsSchema.virtual('examDetails', {
+  ref: 'exams',
+  localField: 'examId',
+  foreignField: '_id',
+  justOne: true,
+});
+
+ExamRegistrationsSchema.virtual('levelDetails', {
+  ref: 'levels',
+  localField: 'levelId',
+  foreignField: '_id',
+  justOne: true,
+});
+
+export interface ExamRegistrationsModel extends Document {
+  examId: Types.ObjectId;
+  examType: string;
+  levelId?: Types.ObjectId;
+  userId: Types.ObjectId;
+  transactionId?: Types.ObjectId;
+  expiryAt: Date;
 }

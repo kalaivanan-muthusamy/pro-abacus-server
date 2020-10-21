@@ -19,6 +19,7 @@ import { ucFirst } from './../Helpers/Common/index';
 import { UpdateBatchDTO } from './dto/UpdateBatchDTO';
 import { InviteToBatchDTO } from './dto/InviteToBatchDTO';
 import { DeleteStudentFromBatchDTO } from './dto/DeleteStudentFromBatchDTO';
+import { DEFAULT_NOTIFICATION_EXPIRY_DAYS } from 'src/configs';
 
 @Injectable()
 export class BatchesService {
@@ -107,7 +108,7 @@ export class BatchesService {
           audience: 'STUDENTS',
           expiryAt: moment
             .tz('Asia/Calcutta')
-            .add(5, 'days')
+            .add(DEFAULT_NOTIFICATION_EXPIRY_DAYS, 'days')
             .toDate(),
           notificationDate: moment.tz('Asia/Calcutta').toDate(),
           senderId: teacherDetails._id,
@@ -246,7 +247,7 @@ export class BatchesService {
         audience: 'TEACHERS',
         expiryAt: moment
           .tz('Asia/Calcutta')
-          .add(5, 'days')
+          .add(DEFAULT_NOTIFICATION_EXPIRY_DAYS, 'days')
           .toDate(),
         notificationDate: moment.tz('Asia/Calcutta').toDate(),
         senderId: user.userId,
@@ -329,7 +330,7 @@ export class BatchesService {
           audience: NOTIFICATION_AUDIENCES.STUDENTS,
           expiryAt: moment
             .tz('Asia/Calcutta')
-            .add(5, 'days')
+            .add(DEFAULT_NOTIFICATION_EXPIRY_DAYS, 'days')
             .toDate(),
           message: `Your batch request for ${batchDetails.name} has been ${ucFirst(batchRequestDetails.status)}`,
           notificationDate: moment.tz('Asia/Calcutta').toDate(),
@@ -345,7 +346,7 @@ export class BatchesService {
           audience: NOTIFICATION_AUDIENCES.TEACHERS,
           expiryAt: moment
             .tz('Asia/Calcutta')
-            .add(5, 'days')
+            .add(DEFAULT_NOTIFICATION_EXPIRY_DAYS, 'days')
             .toDate(),
           message: `Your batch invite for ${batchDetails.name} has been ${ucFirst(batchRequestDetails.status)} by ${studentDetails.name}`,
           notificationDate: moment.tz('Asia/Calcutta').toDate(),

@@ -16,8 +16,8 @@ export class PricingController {
   constructor(private readonly pricingPlansService: PricingPlansService) {}
 
   @Get('/')
-  async getAllSubscriptions(@Query('planType') planType: string): Promise<any> {
-    return this.pricingPlansService.getAllSubscriptions(planType);
+  async getAllPricingPlans(@Query('planType') planType: string): Promise<any> {
+    return this.pricingPlansService.getAllPricingPlans(planType);
   }
 
   @Post('/')

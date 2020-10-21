@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { Injectable, HttpException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, HttpException, InternalServerErrorException, forwardRef, Inject } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { PricingPlansModel, SubscriptionHistoryModel, TransactionsModel } from './pricingplans.schema';
@@ -12,6 +12,7 @@ import { CompletePaymentDTO } from './dto/CompletePaymentDTO';
 import { ROLES } from 'src/constants';
 import { TeachersService } from './../Teachers/teachers.service';
 import { StudentsService } from './../Students/students.service';
+import { CreateTransactionDTO } from './dto/CreateTransactionDTO';
 
 @Injectable()
 export class PricingPlansService {
@@ -22,7 +23,9 @@ export class PricingPlansService {
     private readonly transactionsModel: Model<TransactionsModel>,
     @InjectModel('subscription-history')
     private readonly subscriptionHistoryModel: Model<SubscriptionHistoryModel>,
+    @Inject(forwardRef(() => StudentsService))
     private readonly studentService: StudentsService,
+    @Inject(forwardRef(() => TeachersService))
     private readonly teacherService: TeachersService,
   ) {}
 
@@ -51,7 +54,7 @@ export class PricingPlansService {
     }
   }
 
-  async getAllSubscriptions(planType: string): Promise<any> {
+  async getAllPricingPlans(planType: string): Promise<any> {
     try {
       const filter: any = {};
       if (planType) filter.planType = planType;
@@ -185,6 +188,25 @@ export class PricingPlansService {
         .populate('pricingPlanDetails')
         .populate('transactionDetails');
       return histories;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal server error');
+    }
+  }
+
+  async createTransaction(user: any, createTransactionDTO: CreateTransactionDTO): Promise<any> {
+    try {
+      const pricingDetails = await this.pricingPlansModel.findOne({ _id: Types.ObjectId(createTransactionDTO.pricingPlanId) });
+      const newTransaction = await this.transactionsModel.create({
+        pricingPlanId: Types.ObjectId(createTransactionDTO.pricingPlanId),
+        initiatedOn: moment.tz(APP_TIMEZONE).toDate(),
+        paymentAmount: pricingDetails.discountedPrice,
+        planType: pricingDetails.planType,
+        role: user.role,
+        userId: Types.ObjectId(user.userId),
+      });
+      return newTransaction;
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;

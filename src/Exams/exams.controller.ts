@@ -78,6 +78,14 @@ export class ExamController {
     return await this.examService.getExamReport(user.userId, query);
   }
 
+  @Post('/register')
+  @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async registerExam(@Body('examId') examId: string, @Req() request: Request): Promise<any> {
+    const user: any = request.user;
+    return await this.examService.registerExam(user, examId);
+  }
+
   @Get('/acl-details')
   @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER, ROLES.ADMIN])
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -89,9 +97,9 @@ export class ExamController {
   @Get('/completed')
   @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER, ROLES.ADMIN])
   @UseGuards(JwtAuthGuard, RolesGuard)
-  async completedExams(@Query('examType') examType: string, @Req() request: Request): Promise<any> {
+  async completedExams(@Query('examType') examType: string, @Query('levelId') levelId: string, @Req() request: Request): Promise<any> {
     const user = request.user;
-    return await this.examService.getCompletedExamDetails(examType, user);
+    return await this.examService.getCompletedExamDetails(examType, levelId, user);
   }
 
   @Get('/results')
@@ -129,5 +137,13 @@ export class ExamController {
   async getWCLStarDetails(@Req() request: Request): Promise<any> {
     const user = request.user;
     return await this.examService.getWCLStarDetails(user);
+  }
+
+  @Get('/registered-exams')
+  @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER, ROLES.ADMIN])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getRegisteredExams(@Query('examType') examType: string, @Req() request: Request): Promise<any> {
+    const user = request.user;
+    return await this.examService.getRegisteredExams(user, examType);
   }
 }

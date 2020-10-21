@@ -77,10 +77,12 @@ export const TransactionsSchema = new Schema(
     currency: {
       type: String,
       required: true,
+      default: 'INR',
     },
     currencySymbol: {
       type: String,
       required: true,
+      default: '₹',
     },
     initiatedOn: {
       type: Date,
@@ -120,8 +122,8 @@ export interface TransactionsModel extends Document {
   role: string;
   paymentAmount: number;
   paymentStatus?: string;
-  currency: string;
-  currencySymbol: string;
+  currency?: string;
+  currencySymbol?: string;
   initiatedOn: Date;
   completedOn?: Date;
   transactionDetails?: any;

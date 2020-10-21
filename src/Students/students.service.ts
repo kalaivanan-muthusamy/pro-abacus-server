@@ -19,6 +19,7 @@ import { NOTIFICATION_AUDIENCES } from './../constants';
 import { APP_TIMEZONE } from 'src/configs';
 import { ROLES } from 'src/constants';
 import { NOTIFICATION_TYPES } from 'src/constants';
+import { DEFAULT_NOTIFICATION_EXPIRY_DAYS } from 'src/configs';
 
 @Injectable()
 export class StudentsService {
@@ -322,7 +323,7 @@ export class StudentsService {
         audience: NOTIFICATION_AUDIENCES.STUDENTS,
         expiryAt: moment
           .tz(APP_TIMEZONE)
-          .add(5, 'days')
+          .add(DEFAULT_NOTIFICATION_EXPIRY_DAYS, 'days')
           .toDate(),
         message: 'You have been removed from the current batch',
         to: [student._id],

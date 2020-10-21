@@ -1,11 +1,12 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { AnswersSchema, ExamSchema, ResultsQueueSchema, ResultsSchema } from './exams.schema';
+import { AnswersSchema, ExamSchema, ExamRegistrationsSchema, ResultsQueueSchema, ResultsSchema } from './exams.schema';
 import { ExamController } from './exams.controller';
 import { ExamService } from './exams.service';
 import { StudentsModule } from './../Students/students.module';
 import { NotificationsModule } from './../Notifications/notifications.module';
 import { LevelsModule } from './../Levels/levels.module';
+import { PricingPlansModule } from './../PricingPlans/pricingplans.module';
 
 @Module({
   imports: [
@@ -14,8 +15,10 @@ import { LevelsModule } from './../Levels/levels.module';
       { name: 'answers', schema: AnswersSchema },
       { name: 'results', schema: ResultsSchema },
       { name: 'resultsQueue', schema: ResultsQueueSchema },
+      { name: 'exam-registrations', schema: ExamRegistrationsSchema },
     ]),
     forwardRef(() => StudentsModule),
+    forwardRef(() => PricingPlansModule),
     NotificationsModule,
     LevelsModule,
   ],
