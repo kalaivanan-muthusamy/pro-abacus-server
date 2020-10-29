@@ -33,6 +33,7 @@ export const PricingPlansSchema = new Schema(
     },
     examType: {
       type: String,
+      sparse: true,
       unique: true,
     },
   },
