@@ -9,13 +9,15 @@ import { MailModule } from './../Mail/mail.module';
 import { ExamModule } from './../Exams/exams.module';
 import { LevelsModule } from './../Levels/levels.module';
 import { NotificationsModule } from './../Notifications/notifications.module';
+import { TeachersModule } from './../Teachers/teachers.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: 'students', schema: StudentsSchema }]),
+  MongooseModule.forFeature([{ name: 'students', schema: StudentsSchema }]),
     forwardRef(() => BatchesModule),
     forwardRef(() => ExamModule),
     forwardRef(() => NotificationsModule),
+    forwardRef(() => TeachersModule),
     LevelsModule,
     MailModule,
     MulterModule.register({

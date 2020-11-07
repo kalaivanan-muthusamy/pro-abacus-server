@@ -20,6 +20,7 @@ import { APP_TIMEZONE } from 'src/configs';
 import { ROLES } from 'src/constants';
 import { NOTIFICATION_TYPES } from 'src/constants';
 import { DEFAULT_NOTIFICATION_EXPIRY_DAYS } from 'src/configs';
+import { TeachersService } from './../Teachers/teachers.service';
 
 @Injectable()
 export class StudentsService {
@@ -32,6 +33,8 @@ export class StudentsService {
     private readonly examService: ExamService,
     @Inject(forwardRef(() => NotificationsService))
     private readonly notificationService: NotificationsService,
+    @Inject(forwardRef(() => TeachersService))
+    private readonly teachersService: TeachersService,
     private readonly levelsService: LevelsService,
     private readonly mailService: MailService,
   ) {}
@@ -103,6 +106,7 @@ export class StudentsService {
   async resetPassword(resetPasswordDTO: ResetPasswordDTO): Promise<any> {
     try {
       // Check if the student exist
+      console.log('resetPasswordDTO.email', resetPasswordDTO.email);
       const existingStudent = await this.studentModel.findOne({ email: resetPasswordDTO.email });
       if (!existingStudent) {
         throw new HttpException("This student doesn't exist", 400);
@@ -157,7 +161,9 @@ export class StudentsService {
       this.mailService.sendMail({
         to: studentRegisterDTO.email,
         subject: 'Thanks for registering with Pro Abacus',
-        html: `<p>Thanks for registering with Pro Abacus<p>
+        html: `
+          <p>Hi ${studentRegisterDTO.name},</p>
+          <p>Welcome to <a href='https://proabacus.com'>ProAbacus.com</a><p>
           <p>Click the blow link to verify your email and proceed to login</p>
           <p><a href='https://proabacus.com/email-verify/student/${encodeURIComponent(
             studentRegisterDTO.email,
@@ -174,11 +180,22 @@ export class StudentsService {
 
   async getStudentDetails({ studentId }): Promise<any> {
     try {
-      const studentResponse: any = await this.studentModel
+      const studentDetails: any = await this.studentModel
         .findOne({ _id: Types.ObjectId(studentId) })
         .populate('batchDetails', 'batchNumber name')
-        .populate('levelDetails', 'name');
-      return studentResponse;
+        .populate('levelDetails', 'name')
+        .lean();
+
+      // Get center name
+      if (studentDetails?.batchId) {
+        const teacherDetails = await this.teachersService.getTeacherDetailsByBatchId({ batchId: studentDetails?.batchId });
+        studentDetails.batchDetails = {
+          ...(studentDetails?.batchDetails || {}),
+          centerName: teacherDetails.centerName,
+        };
+      }
+
+      return studentDetails;
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;

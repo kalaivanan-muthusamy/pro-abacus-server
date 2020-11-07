@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, HttpException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, HttpException, forwardRef, Inject } from '@nestjs/common';
 import { Model, Types } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcyrpt from 'bcrypt';
@@ -11,12 +11,15 @@ import { TeacherEmailVerificationDTO } from './dto/TeacherEmailVerificationDTO';
 import { MailService } from './../Mail/mail.service';
 import { TeacherResetPasswordDTO } from './dto/TeacherResetPasswordDTO';
 import { APP_TIMEZONE } from 'src/configs';
+import { BatchesService } from './../Batches/batches.service';
 
 @Injectable()
 export class TeachersService {
   constructor(
     @InjectModel('teachers')
     private readonly teacherModel: Model<TeachersModel>,
+    @Inject(forwardRef(() => BatchesService))
+    private readonly batchesService: BatchesService,
     private readonly mailService: MailService,
   ) {}
 
@@ -62,6 +65,22 @@ export class TeachersService {
     try {
       const teacher = await this.teacherModel.findOne({ _id: teacherId });
       return teacher;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async getTeacherDetailsByBatchId({ batchId }): Promise<any> {
+    try {
+      const batchDetails = await this.batchesService.getBatchDetails(batchId);
+      if (!batchDetails) throw new HttpException("Couldn't get the batch details", 400);
+
+      const teacherDetails = await this.getTeacherDetails({ teacherId: batchDetails.teacherId });
+      if (!teacherDetails) throw new HttpException("Couldn't get the teacher details", 400);
+
+      return teacherDetails;
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;
