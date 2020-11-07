@@ -34,6 +34,8 @@ import { STUDENT_LEVELUP_WCL_PASS_LIMIT } from './../configs';
 import { ExamRegistrationsModel } from './exams.schema';
 import { PricingPlansService } from './../PricingPlans/pricingplans.service';
 import { PRICING_PLAN_TYPES } from 'src/constants';
+import { PAYMENT_STATUSES } from './../constants';
+import { TeachersService } from './../Teachers/teachers.service';
 
 @Injectable()
 export class ExamService {
@@ -50,6 +52,8 @@ export class ExamService {
     private readonly examRegistrationsModel: Model<ExamRegistrationsModel>,
     @Inject(forwardRef(() => StudentsService))
     private readonly studentsService: StudentsService,
+    @Inject(forwardRef(() => TeachersService))
+    private readonly teachersService: TeachersService,
     @Inject(forwardRef(() => PricingPlansService))
     private readonly pricingPlansService: PricingPlansService,
     private readonly notificationsService: NotificationsService,
@@ -58,6 +62,17 @@ export class ExamService {
 
   async generateExam(user: any, examGenerationDTO: GenerateExamDTO): Promise<any> {
     try {
+      // Validate user subscription
+      let isValidSubscription = true;
+      if (user.role === ROLES.STUDENT) {
+        isValidSubscription = await this.studentsService.isValidSubscription(user.userId);
+      } else if (user.role === ROLES.TEACHER) {
+        isValidSubscription = await this.teachersService.isValidSubscription(user.userId);
+      }
+      if (!isValidSubscription) {
+        throw new HttpException('You need active subscription to write exam', 400);
+      }
+
       if (examGenerationDTO.examType === EXAM_TYPES.WCL) {
         return await this.generateWCLExam(user, examGenerationDTO);
       } else if (examGenerationDTO.examType === EXAM_TYPES.ACL) {
@@ -275,22 +290,47 @@ export class ExamService {
       const currentDate = moment.tz(APP_TIMEZONE);
       const examDetails = await this.examModel.findOne({ _id: Types.ObjectId(examId), examDate: { $gte: currentDate.toDate() } });
       if (!examDetails) throw new HttpException('Unable to register for this exam', 400);
+
+      // ACL Validation
+      // if (examDetails.examType === EXAM_TYPES.ACL) {
+      //   const isValid = await this.getWCLValidation(user.userId, 2);
+      //   if (!isValid) {
+      //     throw new HttpException('You are not allowed to Register for this exam. Kindly check the exam criteria', 400);
+      //   }
+      // }
+
+      let transaction;
+      let orderResponse;
       if (examDetails.registrationRequired && examDetails.isPaidRegistration) {
         // Get exam price
         const examPlans = await this.pricingPlansService.getAllPricingPlans(PRICING_PLAN_TYPES.EXAM_PLAN);
         const pricingDetails = examPlans.find(plan => plan.examType === examDetails.examType);
+        if (!pricingDetails) throw new InternalServerErrorException("Couldn't initiate the payment for this exam registration");
+
         // Create a transaction
-        const transaction = await this.pricingPlansService.createTransaction(user, { pricingPlanId: pricingDetails?._id });
-        console.info('examDetails.levelId', examDetails.levelId);
-        this.examRegistrationsModel.create({
-          examId: examDetails._id,
-          levelId: examDetails.levelId,
-          examType: examDetails.examType,
-          userId: Types.ObjectId(user.userId),
-          transactionId: transaction._id,
-          expiryAt: moment.tz(examDetails.examDate, APP_TIMEZONE).toDate(),
-        });
+        transaction = await this.pricingPlansService.createTransaction(user, { pricingPlanId: pricingDetails?._id });
+
+        // Create payment order
+        orderResponse = await this.pricingPlansService.initiatePaymentOrder(
+          pricingDetails.discountedPrice,
+          pricingDetails.currency,
+          transaction._id.toHexString(),
+        );
       }
+
+      this.examRegistrationsModel.create({
+        examId: examDetails._id,
+        levelId: examDetails.levelId,
+        examType: examDetails.examType,
+        userId: Types.ObjectId(user.userId),
+        transactionId: transaction?._id,
+        expiryAt: moment.tz(examDetails.examDate, APP_TIMEZONE).toDate(),
+      });
+
+      return {
+        orderId: orderResponse?.id,
+        transactionId: transaction?._id,
+      };
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;
@@ -724,13 +764,22 @@ export class ExamService {
 
   async getRegisteredExams(user: any, examType: string): Promise<any> {
     try {
-      const registeredExams = await this.examRegistrationsModel
+      let registeredExams: any = await this.examRegistrationsModel
         .find({
           userId: Types.ObjectId(user.userId),
           examType,
         })
-        .populate('examDetails', 'name description examDate')
+        .populate('examDetails', 'name description examDate isPaidRegistration')
+        .populate('transactionDetails', 'paymentStatus')
         .populate('levelDetails', 'name');
+
+      registeredExams = registeredExams.filter(exam => {
+        if (exam?.examDetails?.isPaidRegistration) {
+          return exam?.transactionDetails?.paymentStatus === PAYMENT_STATUSES.COMPLETED;
+        }
+        return true;
+      });
+
       return registeredExams;
     } catch (err) {
       console.error(err);
@@ -746,6 +795,21 @@ export class ExamService {
         result?.examDetails?.levelId?.toHexString() === Types.ObjectId(levelId).toHexString() && result?.percentile >= WCL_PASS_PERCENTILE,
     );
     if (currentLevelWCLResults?.length >= STUDENT_LEVELUP_WCL_PASS_LIMIT) return true;
+    return false;
+  }
+
+  async getWCLValidation(studentId: string, minimumWCLPass = 2): Promise<boolean> {
+    const studentDetails = await this.studentsService.getStudentDetails({ studentId });
+    if (!studentDetails) throw new Error("Couldn't get the student details");
+
+    const WCLResults: any = await this.resultsModel.find({ userId: Types.ObjectId(studentId) }).populate('examDetails', '_id, levelId');
+
+    const currentLevelWCLResults = WCLResults.filter(
+      result =>
+        result?.examDetails?.levelId?.toHexString() === Types.ObjectId(studentDetails.levelId).toHexString() &&
+        result?.percentile >= WCL_PASS_PERCENTILE,
+    );
+    if (currentLevelWCLResults?.length >= minimumWCLPass) return true;
     return false;
   }
 

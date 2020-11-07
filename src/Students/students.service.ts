@@ -186,6 +186,21 @@ export class StudentsService {
     }
   }
 
+  async isValidSubscription(studentId: string): Promise<any> {
+    try {
+      const studentResponse: any = await this.studentModel.findOne({ _id: Types.ObjectId(studentId) });
+      if (!studentResponse?.subscriptionDetails?.expiryAt) return false;
+      const currentTime = moment.tz(APP_TIMEZONE);
+      const subscriptionExpiryDate = moment.tz(studentResponse.subscriptionDetails.expiryAt, APP_TIMEZONE);
+      if (subscriptionExpiryDate > currentTime) return true;
+      return false;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
   async updateStudentDetails({ studentId, studentData, profileImage = null }): Promise<any> {
     try {
       const studentDetails: any = await this.studentModel.findOne({ _id: Types.ObjectId(studentId) });

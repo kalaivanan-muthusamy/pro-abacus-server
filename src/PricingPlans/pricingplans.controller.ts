@@ -9,6 +9,7 @@ import { RolesGuard } from './../Helpers/CustomGaurds/roles.guard';
 import { InitiateSubscriptionDTO } from './dto/InitiateSubscriptionDTO';
 import { Request } from 'express';
 import { CompletePaymentDTO } from './dto/CompletePaymentDTO';
+import { CompleteExamPaymentDTO } from 'src/Exams/dto/CompleteExamPaymentDTO';
 
 @ApiBearerAuth()
 @Controller('/api/pricing-plans')
@@ -43,10 +44,18 @@ export class PricingController {
   }
 
   @Post('/complete-payment')
-  // @SetMetadata('roles', [ROLES.ADMIN])
-  // @UseGuards(JwtAuthGuard, RolesGuard)
+  @SetMetadata('roles', [ROLES.TEACHER, ROLES.STUDENT])
+  @UseGuards(JwtAuthGuard, RolesGuard)
   async completePayment(@Body() completePaymentDTO: CompletePaymentDTO): Promise<any> {
     return this.pricingPlansService.completePayment(completePaymentDTO);
+  }
+
+  @Post('/complete-exam-payment')
+  @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async completeExamPayment(@Body() completeExamPaymentDTO: CompleteExamPaymentDTO, @Req() request: Request): Promise<any> {
+    const user: any = request.user;
+    return await this.pricingPlansService.completeExamPayment(user, completeExamPaymentDTO);
   }
 
   @Get('/subscription-history')

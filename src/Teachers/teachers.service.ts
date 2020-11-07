@@ -10,6 +10,7 @@ import { TeachersModel } from './teachers.schema';
 import { TeacherEmailVerificationDTO } from './dto/TeacherEmailVerificationDTO';
 import { MailService } from './../Mail/mail.service';
 import { TeacherResetPasswordDTO } from './dto/TeacherResetPasswordDTO';
+import { APP_TIMEZONE } from 'src/configs';
 
 @Injectable()
 export class TeachersService {
@@ -222,6 +223,21 @@ export class TeachersService {
     try {
       const teachers: any = await this.teacherModel.find();
       return teachers;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async isValidSubscription(teacherId: string): Promise<any> {
+    try {
+      const teacherDetails: any = await this.teacherModel.findOne({ _id: Types.ObjectId(teacherId) });
+      if (!teacherDetails?.subscriptionDetails?.expiryAt) return false;
+      const currentTime = moment.tz(APP_TIMEZONE);
+      const subscriptionExpiryDate = moment.tz(teacherDetails.subscriptionDetails.expiryAt, APP_TIMEZONE);
+      if (subscriptionExpiryDate > currentTime) return true;
+      return false;
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;

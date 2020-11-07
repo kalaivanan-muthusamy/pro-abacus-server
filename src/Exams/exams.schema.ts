@@ -446,6 +446,13 @@ ExamRegistrationsSchema.virtual('levelDetails', {
   justOne: true,
 });
 
+ExamRegistrationsSchema.virtual('transactionDetails', {
+  ref: 'transactions',
+  localField: 'transactionId',
+  foreignField: '_id',
+  justOne: true,
+});
+
 export interface ExamRegistrationsModel extends Document {
   examId: Types.ObjectId;
   examType: string;

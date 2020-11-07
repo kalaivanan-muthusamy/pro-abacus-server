@@ -7,6 +7,7 @@ import { StudentsModule } from './../Students/students.module';
 import { NotificationsModule } from './../Notifications/notifications.module';
 import { LevelsModule } from './../Levels/levels.module';
 import { PricingPlansModule } from './../PricingPlans/pricingplans.module';
+import { TeachersModule } from './../Teachers/teachers.module';
 
 @Module({
   imports: [
@@ -18,6 +19,8 @@ import { PricingPlansModule } from './../PricingPlans/pricingplans.module';
       { name: 'exam-registrations', schema: ExamRegistrationsSchema },
     ]),
     forwardRef(() => StudentsModule),
+    forwardRef(() => TeachersModule),
+    forwardRef(() => PricingPlansModule),
     forwardRef(() => PricingPlansModule),
     NotificationsModule,
     LevelsModule,

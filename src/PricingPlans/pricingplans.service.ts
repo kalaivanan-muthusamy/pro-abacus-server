@@ -2,6 +2,7 @@
 import { Injectable, HttpException, InternalServerErrorException, forwardRef, Inject } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import * as Razorpay from 'razorpay';
 import { PricingPlansModel, SubscriptionHistoryModel, TransactionsModel } from './pricingplans.schema';
 import { NewPricingPlanDTO } from './dto/NewPricingPlanDTO';
 import { UpdatePricingPlanDTO } from './dto/UpdatePricingPlanDTO';
@@ -13,6 +14,7 @@ import { ROLES } from 'src/constants';
 import { TeachersService } from './../Teachers/teachers.service';
 import { StudentsService } from './../Students/students.service';
 import { CreateTransactionDTO } from './dto/CreateTransactionDTO';
+import { CompleteExamPaymentDTO } from './../Exams/dto/CompleteExamPaymentDTO';
 
 @Injectable()
 export class PricingPlansService {
@@ -101,12 +103,28 @@ export class PricingPlansService {
     }
   }
 
+  async initiatePaymentOrder(paymentAmount: number, currency = 'INR', receipt: string): Promise<any> {
+    // Create a razropay order
+    const instance = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_SECRET,
+    });
+
+    const orderResponse = await instance.orders.create({
+      amount: paymentAmount * 100,
+      currency,
+      receipt,
+    });
+
+    return orderResponse;
+  }
+
   async initiatePricingPlanPayment(initiateSubscriptionDTO: InitiateSubscriptionDTO, user: any): Promise<any> {
     try {
       const pricingPlanDetails = await this.pricingPlansModel.findOne({ _id: Types.ObjectId(initiateSubscriptionDTO.pricingPlanId) });
       if (!pricingPlanDetails) throw new HttpException('This plan not available currently', 400);
 
-      this.transactionsModel.create({
+      const transaction = await this.transactionsModel.create({
         pricingPlanId: pricingPlanDetails._id,
         planType: pricingPlanDetails.planType,
         currency: pricingPlanDetails.currency,
@@ -116,6 +134,17 @@ export class PricingPlansService {
         userId: Types.ObjectId(user.userId),
         role: user.role,
       });
+
+      const orderResponse = await this.initiatePaymentOrder(
+        pricingPlanDetails.discountedPrice,
+        pricingPlanDetails.currency,
+        transaction?._id?.toHexString(),
+      );
+
+      return {
+        orderId: orderResponse.id,
+        transactionId: transaction._id,
+      };
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;
@@ -166,6 +195,15 @@ export class PricingPlansService {
           }
           this.teacherService.updateSubscriptionDetails({ teacherId: userDetails._id, expiryAt });
         }
+
+        transactionDetails.paymentStatus = completePaymentDTO.paymentStatus;
+        transactionDetails.transactionDetails = {
+          razorpayPaymentId: completePaymentDTO.razorpayPaymentId,
+          razorpayOrderId: completePaymentDTO.razorpayOrderId,
+          razorpaySignature: completePaymentDTO.razorpaySignature,
+        };
+        transactionDetails.save();
+
         await this.subscriptionHistoryModel.create({
           transactionId: transactionDetails._id,
           pricingPlanId: transactionDetails.pricingPlanId,
@@ -173,6 +211,65 @@ export class PricingPlansService {
           fromDate: moment.tz(fromDate, APP_TIMEZONE).toDate(),
           toDate: expiryAt,
         });
+      }
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal server error');
+    }
+  }
+
+  async completeExamPayment(user: any, completeExamPaymentDTO: CompleteExamPaymentDTO): Promise<any> {
+    try {
+      const transactionDetails: any = await this.transactionsModel
+        .findOne({ _id: Types.ObjectId(completeExamPaymentDTO.transactionId) })
+        .populate('pricingPlanDetails');
+      if (!transactionDetails) throw new HttpException('This transaction is not valid', 400);
+
+      if (completeExamPaymentDTO.paymentStatus === 'COMPLETED') {
+        transactionDetails.paymentStatus = completeExamPaymentDTO.paymentStatus;
+        let userDetails;
+        let fromDate;
+        let expiryAt;
+        if (transactionDetails.role === ROLES.STUDENT) {
+          userDetails = await this.studentService.getStudentDetails({ studentId: transactionDetails.userId });
+          fromDate = userDetails.subscriptionDetails?.expiryAt;
+          if (userDetails.subscriptionDetails?.expiryAt) {
+            expiryAt = moment
+              .tz(userDetails.subscriptionDetails?.expiryAt, APP_TIMEZONE)
+              .add(transactionDetails?.pricingPlanDetails?.validity, 'days')
+              .toDate();
+          } else {
+            expiryAt = moment
+              .tz(APP_TIMEZONE)
+              .add(transactionDetails?.pricingPlanDetails?.validity, 'days')
+              .toDate();
+          }
+          this.studentService.updateSubscriptionDetails({ studentId: userDetails._id, expiryAt });
+        } else if (transactionDetails.role === ROLES.TEACHER) {
+          userDetails = await this.teacherService.getTeacherDetails({ teacherId: transactionDetails.userId });
+          fromDate = userDetails.subscriptionDetails?.expiryAt;
+          if (userDetails.subscriptionDetails?.expiryAt) {
+            expiryAt = moment
+              .tz(userDetails.subscriptionDetails?.expiryAt, APP_TIMEZONE)
+              .add(transactionDetails?.pricingPlanDetails?.validity, 'days')
+              .toDate();
+          } else {
+            expiryAt = moment
+              .tz(APP_TIMEZONE)
+              .add(transactionDetails?.pricingPlanDetails?.validity, 'days')
+              .toDate();
+          }
+          this.teacherService.updateSubscriptionDetails({ teacherId: userDetails._id, expiryAt });
+        }
+
+        transactionDetails.paymentStatus = completeExamPaymentDTO.paymentStatus;
+        transactionDetails.transactionDetails = {
+          razorpayPaymentId: completeExamPaymentDTO.razorpayPaymentId,
+          razorpayOrderId: completeExamPaymentDTO.razorpayOrderId,
+          razorpaySignature: completeExamPaymentDTO.razorpaySignature,
+        };
+        transactionDetails.save();
       }
     } catch (err) {
       console.error(err);
