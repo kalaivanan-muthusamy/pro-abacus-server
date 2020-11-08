@@ -230,6 +230,9 @@ export const AnswersSchema = new Schema(
       type: Types.ObjectId,
       required: true,
     },
+    batchId: {
+      type: Types.ObjectId,
+    },
     answers: {
       type: [AnswerSchema],
       default: [],
@@ -262,6 +265,7 @@ export interface AnswersModel extends Document {
   examId: Types.ObjectId;
   examType: string;
   userId: Types.ObjectId;
+  batchId?: Types.ObjectId;
   examStartedOn: Date;
   examCompletedOn?: Date;
   answers?: AnswerInterface[];
@@ -280,6 +284,9 @@ export const ResultsSchema = new Schema(
     userId: {
       type: Types.ObjectId,
       required: true,
+    },
+    batchId: {
+      type: Types.ObjectId,
     },
     totalMarks: {
       type: Number,
@@ -363,6 +370,7 @@ export interface ResultsModel extends Document {
   examId: Types.ObjectId;
   examType: string;
   userId: Types.ObjectId;
+  batchId?: Types.ObjectId;
   totalMarks: number;
   scoredMarks: number;
   totalQuestions: number;

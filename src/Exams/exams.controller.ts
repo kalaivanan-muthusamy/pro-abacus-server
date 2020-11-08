@@ -116,7 +116,7 @@ export class ExamController {
   }
 
   @Get('/recent-exams')
-  @SetMetadata('roles', [ROLES.STUDENT])
+  @SetMetadata('roles', [ROLES.STUDENT, ROLES.TEACHER])
   @UseGuards(JwtAuthGuard, RolesGuard)
   async getRecentExams(@Query('examType') examType: string, @Req() request: Request): Promise<any> {
     const user = request.user;

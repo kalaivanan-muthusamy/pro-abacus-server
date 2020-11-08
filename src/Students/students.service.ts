@@ -329,11 +329,11 @@ export class StudentsService {
     }
   }
 
-  async getStudentsByBatch(batchId: string): Promise<any> {
+  async getStudentsByBatches(batchIds: [string]): Promise<any> {
     try {
-      const students = await this.studentModel.find({ batchId: Types.ObjectId(batchId) }).populate('levelDetails', 'name');
+      const batchObjectIds = batchIds.map(batchId => Types.ObjectId(batchId));
+      const students = await this.studentModel.find({ batchId: { $in: batchObjectIds } }).populate('levelDetails', 'name');
       if (!students) throw new HttpException("Couldn't find the student details", 400);
-
       return students;
     } catch (err) {
       console.error(err);

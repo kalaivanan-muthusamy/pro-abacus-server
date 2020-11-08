@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import { Injectable, InternalServerErrorException, HttpException, forwardRef, Inject } from '@nestjs/common';
 import { Model, Types } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
@@ -12,6 +13,10 @@ import { MailService } from './../Mail/mail.service';
 import { TeacherResetPasswordDTO } from './dto/TeacherResetPasswordDTO';
 import { APP_TIMEZONE } from 'src/configs';
 import { BatchesService } from './../Batches/batches.service';
+import { StudentsService } from './../Students/students.service';
+import { ExamService } from './../Exams/exams.service';
+import { BATCH_REQUEST_STATUS } from 'src/constants';
+import { EXAM_TYPES } from 'src/constants';
 
 @Injectable()
 export class TeachersService {
@@ -20,6 +25,10 @@ export class TeachersService {
     private readonly teacherModel: Model<TeachersModel>,
     @Inject(forwardRef(() => BatchesService))
     private readonly batchesService: BatchesService,
+    @Inject(forwardRef(() => StudentsService))
+    private readonly studentsService: StudentsService,
+    @Inject(forwardRef(() => ExamService))
+    private readonly examService: ExamService,
     private readonly mailService: MailService,
   ) {}
 
@@ -275,6 +284,115 @@ export class TeachersService {
       }
       await teacherDetails.save();
       return teacherDetails;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async getStudentStats(user: any): Promise<any> {
+    try {
+      const batches = await this.batchesService.getBatchesByTeacher(user.userId);
+      const batchIds = batches.map(batch => batch._id);
+      const students = await this.studentsService.getStudentsByBatches(batchIds);
+      const examResultStats = await this.examService.getCompletedExamResultsByBatchIds({ batchIds });
+      const assessments = await this.examService.getAssessmentsByTeacher(user.userId);
+      return {
+        totalStudents: students.length,
+        totalAssessments: assessments?.length || 0,
+        ACLParticipatedStudents: examResultStats.ACLParticipated,
+        WCLParticipatedStudents: examResultStats.WCLParticipated,
+        ACLWonStudents: examResultStats.ACLWon,
+        WCLWonStudents: examResultStats.WCLWon,
+      };
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async getStudentsJoiningTrend(user: any): Promise<any> {
+    try {
+      const requests = await this.batchesService.getBatchRequestByTeacher({
+        teacherId: user.userId,
+        status: BATCH_REQUEST_STATUS.ACCEPTED,
+      });
+
+      const groupedRequest = {};
+      requests.map(request => {
+        const completedOn = moment.tz(request.completedOn, APP_TIMEZONE);
+        const key = completedOn.format('MMM-YYYY');
+        if (groupedRequest[key]) {
+          groupedRequest[key].push(request);
+        } else {
+          groupedRequest[key] = [request];
+        }
+      });
+      const keys = [];
+      const values = [];
+      Object.keys(groupedRequest).map(key => {
+        keys.push(key);
+        values.push(groupedRequest[key].length);
+      });
+
+      return {
+        keys,
+        values,
+      };
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async getStudentsParticipantsReport(user: any): Promise<any> {
+    try {
+      const batches = await this.batchesService.getBatchesByTeacher(user.userId);
+      const batchIds = batches.map(batch => batch._id);
+      console.log('batchIds', batchIds);
+      const examReports = await this.examService.getParticipantsReport({ batchIds, examTypes: [EXAM_TYPES.ACL, EXAM_TYPES.WCL] });
+      const WCLExams = examReports.filter(exam => exam.examType === EXAM_TYPES.WCL);
+      const ACLExams = examReports.filter(exam => exam.examType === EXAM_TYPES.ACL);
+
+      const WCLByExamGroup = {};
+      WCLExams.map(exam => {
+        const key = exam.examDetails._id;
+        if (WCLByExamGroup[key]) {
+          WCLByExamGroup[key].push(exam);
+        } else {
+          WCLByExamGroup[key] = [exam];
+        }
+      });
+      const WCLReports = Object.keys(WCLByExamGroup).map(examId => ({
+        examName: WCLByExamGroup[examId]?.[0]?.examDetails?.name,
+        examDate: WCLByExamGroup[examId]?.[0]?.examDetails?.examDate,
+        participated: WCLExams.length,
+        won: WCLExams.filter(result => result.isWCLStar).length,
+      }));
+
+      const ACLExamGroup = {};
+      ACLExams.map(exam => {
+        const key = exam.examDetails._id;
+        if (ACLExamGroup[key]) {
+          ACLExamGroup[key].push(exam);
+        } else {
+          ACLExamGroup[key] = [exam];
+        }
+      });
+      const ACLReports = Object.keys(ACLExamGroup).map(examId => ({
+        examName: ACLExamGroup[examId]?.[0]?.examDetails?.name,
+        examDate: ACLExamGroup[examId]?.[0]?.examDetails?.examDate,
+        participated: ACLExams.length,
+        won: WCLExams.filter(result => result.isWCLStar).length,
+      }));
+
+      return {
+        WCLReports,
+        ACLReports,
+      };
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;

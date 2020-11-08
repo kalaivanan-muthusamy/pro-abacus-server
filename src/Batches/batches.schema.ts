@@ -64,6 +64,9 @@ export const BatchRequestsSchema = new Schema(
       required: true,
       default: BATCH_REQUEST_STATUS.PENDING,
     },
+    completedOn: {
+      type: Date,
+    },
     expiryAt: {
       type: Date,
       required: true,
@@ -85,5 +88,6 @@ export interface BatchRequestsModel extends Document {
   requestType: string;
   status?: string;
   expiryAt: Date;
+  completedOn?: Date;
   isDeleted?: boolean;
 }

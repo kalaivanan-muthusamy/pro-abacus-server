@@ -16,14 +16,3 @@ export class RolesGuard implements CanActivate {
     return false;
   }
 }
-
-const config = {
-  examId: '',
-  questionId: '',
-  studentId: '',
-  teacherId: '',
-  givenAnswer: '',
-  answer: '',
-  isCorrectAnswer: '',
-  serverTime: '',
-};

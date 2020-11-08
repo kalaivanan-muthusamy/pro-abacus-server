@@ -343,6 +343,17 @@ export class ExamService {
       const exam = await this.examModel.findOne({ _id: Types.ObjectId(examId) });
       if (!exam) throw new HttpException('This exam is not available', 400);
 
+      // Validate user subscription
+      let isValidSubscription = true;
+      if (user.role === ROLES.STUDENT) {
+        isValidSubscription = await this.studentsService.isValidSubscription(user.userId);
+      } else if (user.role === ROLES.TEACHER) {
+        isValidSubscription = await this.teachersService.isValidSubscription(user.userId);
+      }
+      if (!isValidSubscription) {
+        throw new HttpException('You need active subscription to write exam', 400);
+      }
+
       // TODO
       if (exam.examType === EXAM_TYPES.PRACTICE || exam.examType === EXAM_TYPES.SELF_TEST) {
         if (exam.examStartedDateTime || exam.examCompletedDateTime)
@@ -387,8 +398,14 @@ export class ExamService {
         throw new HttpException("This exam can't be started", 400);
       }
 
+      let studentDetails;
+      if (user.role === ROLES.STUDENT) {
+        studentDetails = await this.studentsService.getStudentDetails({ studentId: user.userId });
+      }
+
       await this.answersModel.create({
         userId: user.userId,
+        batchId: studentDetails?.batchId,
         examId: exam._id,
         examType: exam.examType,
         examStartedOn: moment.tz(APP_TIMEZONE).toDate(),
@@ -432,10 +449,18 @@ export class ExamService {
           0,
         );
         const speed = parseFloat(((answeredQuestions / timeTaken) * 60).toFixed(2));
+
+        // Get batch id
+        let studentDetails;
+        if (user.role === ROLES.STUDENT) {
+          studentDetails = await this.studentsService.getStudentDetails({ studentId: user.userId });
+        }
+
         this.resultsModel.create({
           examId: examDetails._id,
           examType: examDetails.examType,
           userId: examAnswers.userId,
+          batchId: studentDetails?.batchId,
           totalMarks: totalMarks,
           totalQuestions: totalQuestions,
           scoredMarks: getScoredMarks(examDetails, examAnswers),
@@ -605,7 +630,6 @@ export class ExamService {
 
       const answerDetails = await this.answersModel.findOne({ userId: Types.ObjectId(userId), examId: Types.ObjectId(examId) });
       examReport.answerDetails = answerDetails;
-      console.info('answerDetails', answerDetails);
       return examReport;
     } catch (err) {
       console.error(err);
@@ -745,16 +769,73 @@ export class ExamService {
 
   async getRecentExams(examType: string, user: any): Promise<any> {
     try {
-      const studentDetails = await this.studentsService.getStudentDetails({ studentId: user.userId });
+      let userDetails;
+      if (user.role === ROLES.STUDENT) {
+        userDetails = await this.studentsService.getStudentDetails({ studentId: user.userId });
+      } else if (user.role === ROLES.TEACHER) {
+        userDetails = await this.teachersService.getTeacherDetails({ teacherId: user.userId });
+      }
       const recentExams = await this.resultsModel
         .find({
-          userId: studentDetails._id,
+          userId: userDetails._id,
           examType,
         })
         .populate('examDetails', '_id name')
         .sort({ createdAt: -1 })
         .limit(10);
       return recentExams;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal server error!');
+    }
+  }
+
+  async getCompletedExamResultsByBatchIds({ batchIds }): Promise<any> {
+    try {
+      const batchObjectIds = batchIds.map(batchId => Types.ObjectId(batchId));
+      const results = await this.resultsModel.find({
+        batchId: { $in: batchObjectIds },
+      });
+
+      return {
+        ACLParticipated: results.filter(result => result.examType === EXAM_TYPES.ACL)?.length,
+        WCLParticipated: results.filter(result => result.examType === EXAM_TYPES.WCL)?.length,
+        ACLWon: results.filter(result => result.examType === EXAM_TYPES.ACL && result.isACLStar)?.length,
+        WCLWon: results.filter(result => result.examType === EXAM_TYPES.WCL && result.isWCLStar)?.length,
+      };
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal server error!');
+    }
+  }
+
+  async getAssessmentsByTeacher(teacherId): Promise<any> {
+    try {
+      const assessments = this.examModel.find({ userId: Types.ObjectId(teacherId) });
+      return assessments;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal server error!');
+    }
+  }
+
+  async getParticipantsReport({ batchIds, examTypes }): Promise<any> {
+    try {
+      const batchObjectIds = batchIds.map(id => Types.ObjectId(id));
+      const filter: any = {
+        batchId: { $in: batchObjectIds },
+      };
+      if (examTypes && Array.isArray(examTypes)) {
+        filter.examType = { $in: examTypes };
+      }
+      const reports: any = await this.resultsModel
+        .find(filter)
+        .populate('examDetails', 'name examDate')
+        .lean();
+      return reports;
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;
@@ -856,6 +937,7 @@ export class ExamService {
           examId: examDetails._id,
           examType: examDetails.examType,
           userId: examAnswers.userId,
+          batchId: examAnswers.batchId,
           totalQuestions: totalQuestions,
           totalMarks: totalMarks,
           accuracy: parseFloat(((correctAnswers / totalQuestions) * 100).toFixed(2)),

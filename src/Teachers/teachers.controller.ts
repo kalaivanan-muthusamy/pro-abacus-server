@@ -81,10 +81,34 @@ export class TeachersController {
     return this.teachersService.getAllTeachers();
   }
 
+  @Get('/student-stats')
+  @SetMetadata('roles', [ROLES.TEACHER])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getStudentStats(@Req() request: Request): Promise<any> {
+    const user = request.user;
+    return this.teachersService.getStudentStats(user);
+  }
+
+  @Get('/student-joining-trend')
+  @SetMetadata('roles', [ROLES.TEACHER])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getStudentsJoiningTrend(@Req() request: Request): Promise<any> {
+    const user = request.user;
+    return this.teachersService.getStudentsJoiningTrend(user);
+  }
+
+  @Get('/student-participants-report')
+  @SetMetadata('roles', [ROLES.TEACHER])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getStudentsParticipantsReport(@Req() request: Request): Promise<any> {
+    const user = request.user;
+    return this.teachersService.getStudentsParticipantsReport(user);
+  }
+
   @Get('/:userId')
   @SetMetadata('roles', [ROLES.ADMIN])
   @UseGuards(JwtAuthGuard, RolesGuard)
-  async getStudentDetails(@Param('userId') userId: string): Promise<any> {
+  async getTeacherDetails(@Param('userId') userId: string): Promise<any> {
     return this.teachersService.getTeacherDetails({ teacherId: userId });
   }
 }

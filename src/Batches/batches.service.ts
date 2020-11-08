@@ -20,6 +20,7 @@ import { UpdateBatchDTO } from './dto/UpdateBatchDTO';
 import { InviteToBatchDTO } from './dto/InviteToBatchDTO';
 import { DeleteStudentFromBatchDTO } from './dto/DeleteStudentFromBatchDTO';
 import { DEFAULT_NOTIFICATION_EXPIRY_DAYS } from 'src/configs';
+import { APP_TIMEZONE } from 'src/configs';
 
 @Injectable()
 export class BatchesService {
@@ -143,8 +144,20 @@ export class BatchesService {
     try {
       const batchDetails = await this.batchModel.findOne({ teacherId: Types.ObjectId(user.userId), _id: Types.ObjectId(batchId) });
       if (!batchDetails) throw new HttpException("Batch doesn't exist", 400);
-      const students = await this.studentsService.getStudentsByBatch(batchDetails._id);
+      const students = await this.studentsService.getStudentsByBatches([batchDetails._id]);
       return students;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async getBatchesByTeacher(teacherId: string): Promise<any> {
+    try {
+      const batches = await this.batchModel.find({ teacherId: Types.ObjectId(teacherId) });
+      if (!batches) throw new HttpException("Batch doesn't exist", 400);
+      return batches;
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;
@@ -300,6 +313,7 @@ export class BatchesService {
       if (!teacherDetails) throw new HttpException("Couldn't find the batch details", 400);
 
       if (acceptBatchRequestDTO.status === BATCH_REQUEST_STATUS.ACCEPTED) {
+        batchRequestDetails.completedOn = moment.tz(APP_TIMEZONE).toDate();
         batchRequestDetails.status = BATCH_REQUEST_STATUS.ACCEPTED;
         this.studentsService.updateStudentDetails({
           studentId: batchRequestDetails.studentId,
@@ -358,6 +372,20 @@ export class BatchesService {
       }
 
       return batchRequestDetails;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async getBatchRequestByTeacher({ teacherId, status = null, requestType = null }): Promise<any> {
+    try {
+      const filter: any = { teacherId: Types.ObjectId(teacherId) };
+      if (status) filter.status = status;
+      if (requestType) filter.requestType = requestType;
+      const batchRequests = await this.batchRequestsModel.find(filter);
+      return batchRequests;
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;
