@@ -55,6 +55,13 @@ export class StudentsController {
     return this.studentsService.getAllStudents();
   }
 
+  @Get('/joining-trend')
+  @SetMetadata('roles', [ROLES.ADMIN])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getStudentJoiningTrend(): Promise<any> {
+    return this.studentsService.getStudentJoiningTrend();
+  }
+
   @Get('/:userId')
   @SetMetadata('roles', [ROLES.ADMIN])
   @UseGuards(JwtAuthGuard, RolesGuard)

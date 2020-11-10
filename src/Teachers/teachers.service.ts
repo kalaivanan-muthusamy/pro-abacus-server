@@ -17,6 +17,7 @@ import { StudentsService } from './../Students/students.service';
 import { ExamService } from './../Exams/exams.service';
 import { BATCH_REQUEST_STATUS } from 'src/constants';
 import { EXAM_TYPES } from 'src/constants';
+import { getMonthByNumber } from './../Helpers/Date/index';
 
 @Injectable()
 export class TeachersService {
@@ -392,6 +393,57 @@ export class TeachersService {
       return {
         WCLReports,
         ACLReports,
+      };
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async getTeacherJoiningTrend(): Promise<any> {
+    try {
+      // By default, get last 12 months data
+      const startDate = moment.tz(APP_TIMEZONE);
+      startDate.subtract(1, 'year');
+      const joiningTrend = [];
+      const teachersJoiningByMonth = await this.teacherModel.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startDate.toDate() },
+          },
+        },
+        {
+          $project: {
+            month: { $month: '$createdAt' },
+            year: { $year: '$createdAt' },
+            createdAt: 1,
+          },
+        },
+        {
+          $group: {
+            _id: { month: '$month', year: '$year' },
+            createdAt: { $first: '$createdAt' },
+            monthValue: { $first: '$month' },
+            yearValue: { $first: '$year' },
+            totalStudents: { $sum: 1 },
+          },
+        },
+        { $sort: { createdAt: 1 } },
+      ]);
+
+      if (!teachersJoiningByMonth) throw new HttpException("Couldn't get the students joining trend data", 400);
+
+      teachersJoiningByMonth.map(record => {
+        joiningTrend.push({
+          key: `${getMonthByNumber(record.monthValue, false, 1)}, ${record.yearValue}`,
+          value: record.totalStudents,
+        });
+      });
+
+      return {
+        keys: joiningTrend.map(trend => trend.key),
+        values: joiningTrend.map(trend => trend.value),
       };
     } catch (err) {
       console.error(err);

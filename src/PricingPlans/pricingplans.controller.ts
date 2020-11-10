@@ -69,4 +69,9 @@ export class PricingController {
     }
     return this.pricingPlansService.getSubscriptionHistories(subscriberId);
   }
+
+  @Get('/subscription-trend')
+  async getSubscriptionTrend(@Query('role') role: string): Promise<any> {
+    return this.pricingPlansService.getSubscriptionTrend(role);
+  }
 }

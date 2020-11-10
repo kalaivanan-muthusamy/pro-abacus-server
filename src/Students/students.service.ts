@@ -21,6 +21,7 @@ import { ROLES } from 'src/constants';
 import { NOTIFICATION_TYPES } from 'src/constants';
 import { DEFAULT_NOTIFICATION_EXPIRY_DAYS } from 'src/configs';
 import { TeachersService } from './../Teachers/teachers.service';
+import { getMonthByNumber } from './../Helpers/Date/index';
 
 @Injectable()
 export class StudentsService {
@@ -366,6 +367,59 @@ export class StudentsService {
       });
 
       return student;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async getStudentJoiningTrend(): Promise<any> {
+    try {
+      // By default, get last 12 months data
+      const startDate = moment.tz(APP_TIMEZONE);
+      startDate.subtract(1, 'year');
+      const joiningTrend = [];
+      const studentsJoiningByMonth = await this.studentModel.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startDate.toDate() },
+          },
+        },
+        {
+          $project: {
+            month: { $month: '$createdAt' },
+            year: { $year: '$createdAt' },
+            createdAt: 1,
+          },
+        },
+        {
+          $group: {
+            _id: { month: '$month', year: '$year' },
+            createdAt: { $first: '$createdAt' },
+            monthValue: { $first: '$month' },
+            yearValue: { $first: '$year' },
+            totalStudents: { $sum: 1 },
+          },
+        },
+        { $sort: { createdAt: 1 } },
+      ]);
+
+      if (!studentsJoiningByMonth) throw new HttpException("Couldn't get the students joining trend data", 400);
+
+      studentsJoiningByMonth.map(record => {
+        joiningTrend.push({
+          key: `${getMonthByNumber(record.monthValue, false, 1)}, ${record.yearValue}`,
+          value: record.totalStudents,
+        });
+      });
+
+      console.debug(joiningTrend);
+
+      return {
+        keys: joiningTrend.map(trend => trend.key),
+        values: joiningTrend.map(trend => trend.value),
+      };
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;

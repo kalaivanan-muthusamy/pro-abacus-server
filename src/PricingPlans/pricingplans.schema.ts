@@ -140,6 +140,10 @@ export const SubscriptionHistorySchema = new Schema(
       type: Types.ObjectId,
       required: true,
     },
+    role: {
+      type: String,
+      required: true,
+    },
     pricingPlanId: {
       type: Types.ObjectId,
       required: true,
@@ -179,6 +183,7 @@ export interface SubscriptionHistoryModel extends Document {
   transactionId: Types.ObjectId;
   pricingPlanId: Types.ObjectId;
   userId: Types.ObjectId;
+  role: string;
   fromDate: Date;
   toDate: Date;
 }

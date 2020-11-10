@@ -15,6 +15,7 @@ import { TeachersService } from './../Teachers/teachers.service';
 import { StudentsService } from './../Students/students.service';
 import { CreateTransactionDTO } from './dto/CreateTransactionDTO';
 import { CompleteExamPaymentDTO } from './../Exams/dto/CompleteExamPaymentDTO';
+import { getMonthByNumber } from './../Helpers/Date/index';
 
 @Injectable()
 export class PricingPlansService {
@@ -159,9 +160,9 @@ export class PricingPlansService {
         .populate('pricingPlanDetails');
       if (!transactionDetails) throw new HttpException('This transaction is not valid', 400);
 
+      let userDetails;
       if (completePaymentDTO.paymentStatus === 'COMPLETED') {
         transactionDetails.paymentStatus = completePaymentDTO.paymentStatus;
-        let userDetails;
         let fromDate;
         let expiryAt;
         if (transactionDetails.role === ROLES.STUDENT) {
@@ -208,6 +209,7 @@ export class PricingPlansService {
           transactionId: transactionDetails._id,
           pricingPlanId: transactionDetails.pricingPlanId,
           userId: transactionDetails.userId,
+          role: userDetails.role,
           fromDate: moment.tz(fromDate, APP_TIMEZONE).toDate(),
           toDate: expiryAt,
         });
@@ -304,6 +306,59 @@ export class PricingPlansService {
         userId: Types.ObjectId(user.userId),
       });
       return newTransaction;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal server error');
+    }
+  }
+
+  async getSubscriptionTrend(role: string): Promise<any> {
+    try {
+      const startDate = moment.tz(APP_TIMEZONE);
+      startDate.subtract(1, 'year');
+      const subscriptionStats = [];
+      const subscriptions = await this.subscriptionHistoryModel.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startDate.toDate() },
+            role, 
+          },
+        },
+        {
+          $project: {
+            month: { $month: '$createdAt' },
+            year: { $year: '$createdAt' },
+            createdAt: 1,
+          },
+        },
+        {
+          $group: {
+            _id: { month: '$month', year: '$year' },
+            createdAt: { $first: '$createdAt' },
+            monthValue: { $first: '$month' },
+            yearValue: { $first: '$year' },
+            totalUsers: { $sum: 1 },
+          },
+        },
+        { $sort: { createdAt: 1 } },
+      ]);
+
+      if (!subscriptions) throw new HttpException("Couldn't get the students joining trend data", 400);
+
+      subscriptions.map(record => {
+        subscriptionStats.push({
+          key: `${getMonthByNumber(record.monthValue, false, 1)}, ${record.yearValue}`,
+          value: record.totalUsers,
+        });
+      });
+
+      console.debug(subscriptionStats);
+
+      return {
+        keys: subscriptionStats.map(trend => trend.key),
+        values: subscriptionStats.map(trend => trend.value),
+      };
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;

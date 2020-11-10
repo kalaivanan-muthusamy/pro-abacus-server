@@ -146,4 +146,11 @@ export class ExamController {
     const user = request.user;
     return await this.examService.getRegisteredExams(user, examType);
   }
+
+  @Get('/trend')
+  @SetMetadata('roles', [ROLES.ADMIN])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getExamParticipationTrend(@Query('examType') examType: string): Promise<any> {
+    return await this.examService.getExamParticipationTrend(examType);
+  }
 }

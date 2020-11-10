@@ -36,6 +36,7 @@ import { PricingPlansService } from './../PricingPlans/pricingplans.service';
 import { PRICING_PLAN_TYPES } from 'src/constants';
 import { PAYMENT_STATUSES } from './../constants';
 import { TeachersService } from './../Teachers/teachers.service';
+import { getMonthByNumber } from './../Helpers/Date/index';
 
 @Injectable()
 export class ExamService {
@@ -892,6 +893,58 @@ export class ExamService {
     );
     if (currentLevelWCLResults?.length >= minimumWCLPass) return true;
     return false;
+  }
+
+  async getExamParticipationTrend(examType: string): Promise<any> {
+    try {
+      // By default, get last 12 months data
+      const startDate = moment.tz(APP_TIMEZONE);
+      startDate.subtract(1, 'year');
+      const participationTrend = [];
+      const examResults = await this.resultsModel.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startDate.toDate() },
+            examType,
+          },
+        },
+        {
+          $project: {
+            month: { $month: '$createdAt' },
+            year: { $year: '$createdAt' },
+            createdAt: 1,
+          },
+        },
+        {
+          $group: {
+            _id: { month: '$month', year: '$year' },
+            createdAt: { $first: '$createdAt' },
+            monthValue: { $first: '$month' },
+            yearValue: { $first: '$year' },
+            totalParticipants: { $sum: 1 },
+          },
+        },
+        { $sort: { createdAt: 1 } },
+      ]);
+
+      if (!examResults) throw new HttpException("Couldn't get the exam participation trend data", 400);
+
+      examResults.map(record => {
+        participationTrend.push({
+          key: `${getMonthByNumber(record.monthValue, false, 1)}, ${record.yearValue}`,
+          value: record.totalParticipants,
+        });
+      });
+
+      return {
+        keys: participationTrend.map(trend => trend.key),
+        values: participationTrend.map(trend => trend.value),
+      };
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
   }
 
   @Cron(CronExpression.EVERY_5_SECONDS) // '0 */2 * * * *'
