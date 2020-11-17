@@ -16,13 +16,7 @@ export function generateAllQuestions(splitUps: ExamSplitUpInterface, negativeMar
 export function generateQuestions(category: string, splitUps: any, negativeMarks: boolean): Array<any> {
   const questions = [];
   splitUps.map(questionConfig => {
-    if (category === SPLITUP_CATEGORY.ADDITION_AND_SUBTRACTION) {
-      questions.push(...generateIndividualQuestion(MATH_TYPE.ADDITION_AND_SUBTRACTION, questionConfig, negativeMarks));
-    } else if (category === SPLITUP_CATEGORY.MULTIPLICATION) {
-      questions.push(...generateIndividualQuestion(MATH_TYPE.MULTIPLICATION, questionConfig, negativeMarks));
-    } else if (category === SPLITUP_CATEGORY.DIVISION) {
-      questions.push(...generateIndividualQuestion(MATH_TYPE.DIVISION, questionConfig, negativeMarks));
-    }
+    questions.push(...generateIndividualQuestion(category, questionConfig, negativeMarks));
   });
   return questions;
 }
@@ -33,7 +27,7 @@ function generateIndividualQuestion(type: string, questionConfig: any, negativeM
     case MATH_TYPE.ADDITION_AND_SUBTRACTION: {
       const totalQuestions = questionConfig.questions;
       [...Array(totalQuestions)].map(() => {
-        let rowValues = [...Array(questionConfig.rows)].map(() => getRandomDigits(questionConfig.digits));
+        let rowValues = [...Array(questionConfig.rows)].map(() => getRandomDigits({ length: questionConfig.digits }));
         rowValues = rowValues.sort().reverse();
         rowValues = rowValues.map((a, index) => (index % 2 !== 0 ? -a : a));
         questions.push({
@@ -51,7 +45,9 @@ function generateIndividualQuestion(type: string, questionConfig: any, negativeM
     case MATH_TYPE.MULTIPLICATION: {
       const totalQuestions = questionConfig.questions;
       [...Array(totalQuestions)].map(() => {
-        const rowValues = [getRandomDigits(questionConfig.multiplicandDigits), getRandomDigits(questionConfig.multiplierDigits)];
+        const multiplicand = getRandomDigits({ length: questionConfig.multiplicandDigits, ignore: [0, 1] });
+        const multiplier = getRandomDigits({ length: questionConfig.multiplicandDigits, ignore: [0, 1, multiplicand] });
+        const rowValues = [multiplicand, multiplier];
         questions.push({
           type,
           multiplicandDigits: questionConfig.multiplicandDigits,
@@ -67,8 +63,8 @@ function generateIndividualQuestion(type: string, questionConfig: any, negativeM
     case MATH_TYPE.DIVISION: {
       const totalQuestions = questionConfig.questions;
       [...Array(totalQuestions)].map(() => {
-        let tempDividend = getRandomDigits(questionConfig.dividendDigits);
-        let tempDivisor = getRandomDigits(questionConfig.divisorDigits);
+        let tempDividend = getRandomDigits({ length: questionConfig.dividendDigits, ignore: [0, 1] });
+        let tempDivisor = getRandomDigits({ length: questionConfig.divisorDigits, ignore: [0, 1, tempDividend] });
         if (tempDividend < tempDivisor) {
           const temp = tempDividend;
           tempDividend = tempDivisor;
@@ -116,6 +112,10 @@ function getAnswer(type: string, rowValues: Array<number>): any {
   }
 }
 
-function getRandomDigits(length) {
-  return Math.floor(Math.pow(10, length - 1) + Math.random() * 9 * Math.pow(10, length - 1));
+function getRandomDigits({ length, ignore = [] }) {
+  let digit = Math.floor(Math.pow(10, length - 1) + Math.random() * 9 * Math.pow(10, length - 1));
+  while (ignore.includes(digit)) {
+    digit = Math.floor(Math.pow(10, length - 1) + Math.random() * 9 * Math.pow(10, length - 1));
+  }
+  return digit;
 }
