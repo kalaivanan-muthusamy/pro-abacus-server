@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNumberString } from './../../Helpers/CustomValidators/IsNumberString';
-import { Validate, IsString, IsEmail, IsOptional } from 'class-validator';
+import { Validate, IsString, IsEmail, IsOptional, IsDateString, IsBoolean } from 'class-validator';
 
 export class UpdateTeacherDTO {
   @ApiPropertyOptional()
@@ -32,4 +32,19 @@ export class UpdateTeacherDTO {
   @IsOptional()
   @IsString()
   readonly centerName: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  readonly enabled: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  readonly teacherId: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString({ message: 'Exam date should be provided' })
+  readonly expiryAt: string;
 }

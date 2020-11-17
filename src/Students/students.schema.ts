@@ -57,6 +57,10 @@ export const StudentsSchema = new Schema(
       _id: false,
       type: SubscriptionDetails,
     },
+    enabled: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true,
@@ -98,4 +102,5 @@ export interface StudentsModel extends Document {
   forgotPasswordHash?: string;
   forgotPasswordExpiryDate?: Date;
   subscriptionDetails?: SubscriptionDetailsInterface;
+  enabled?: boolean;
 }

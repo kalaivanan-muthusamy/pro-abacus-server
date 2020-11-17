@@ -11,6 +11,9 @@ import { StudentsService } from './../Students/students.service';
 import { Types } from 'mongoose';
 import { TeachersService } from './../Teachers/teachers.service';
 import { forwardRef } from '@nestjs/common';
+import { SendNotificationDTO } from './dto/send-notification.dto';
+import { NOTIFICATION_TYPES } from 'src/constants';
+import { APP_TIMEZONE } from 'src/configs';
 
 @Injectable()
 export class NotificationsService {
@@ -106,6 +109,28 @@ export class NotificationsService {
       const notificationDetails = await this.notificationsModel.findOne(filter);
       if (notificationDetails) notificationDetails.remove();
       return null;
+    } catch (err) {
+      console.error(err);
+      if (err instanceof HttpException) throw err;
+      throw new InternalServerErrorException('Internal Server Error!');
+    }
+  }
+
+  async sendNotification(sendNotificationDTO: SendNotificationDTO, user: any): Promise<any> {
+    try {
+      const currentDate = moment.tz(APP_TIMEZONE);
+      const notification = await this.notificationsModel.create({
+        audience: sendNotificationDTO.to,
+        type: NOTIFICATION_TYPES.INFORMATIONAL_NOTIFICATION,
+        message: sendNotificationDTO.message,
+        senderId: Types.ObjectId(user.userId),
+        senderRole: user.role,
+        to: [],
+        notificationDate: currentDate.toDate(),
+        expiryAt: currentDate.add(15, 'days').toDate(),
+        toAll: true,
+      });
+      return notification;
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;

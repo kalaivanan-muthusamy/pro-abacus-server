@@ -107,7 +107,6 @@ export class StudentsService {
   async resetPassword(resetPasswordDTO: ResetPasswordDTO): Promise<any> {
     try {
       // Check if the student exist
-      console.log('resetPasswordDTO.email', resetPasswordDTO.email);
       const existingStudent = await this.studentModel.findOne({ email: resetPasswordDTO.email });
       if (!existingStudent) {
         throw new HttpException("This student doesn't exist", 400);
@@ -275,6 +274,14 @@ export class StudentsService {
         } else {
           studentDetails.levelId = studentData?.levelId;
         }
+      }
+
+      if (studentData.expiryAt) {
+        studentDetails.subscriptionDetails.expiryAt = moment.tz(studentData.expiryAt, APP_TIMEZONE).toDate();
+      }
+
+      if (studentData.enabled !== undefined) {
+        studentDetails.enabled = studentData.enabled;
       }
 
       studentDetails.save();

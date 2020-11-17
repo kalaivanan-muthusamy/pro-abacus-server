@@ -28,6 +28,7 @@ export class AuthService {
       });
       if (!student) throw new BadRequestException('Unable to find this user in our records');
       if (!student.emailVerified) throw new BadRequestException('Email is not verified yet!');
+      if (!student.enabled) throw new BadRequestException('You account has been disabled');
       if (!(await compare(authenticationDTO.password, student.password))) {
         throw new BadRequestException('Invalid password');
       }

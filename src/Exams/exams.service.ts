@@ -65,11 +65,16 @@ export class ExamService {
     try {
       // Validate user subscription
       let isValidSubscription = true;
+      let userDetails;
       if (user.role === ROLES.STUDENT) {
+        userDetails = await this.studentsService.getStudentDetails({ studentId: user.userId });
         isValidSubscription = await this.studentsService.isValidSubscription(user.userId);
       } else if (user.role === ROLES.TEACHER) {
+        userDetails = await this.teachersService.getTeacherDetails({ teacherId: user.userId });
         isValidSubscription = await this.teachersService.isValidSubscription(user.userId);
       }
+      if (!userDetails) throw new HttpException('Invalid user', 400);
+      if (!userDetails?.enabled) throw new HttpException('You account is currently disabled', 400);
       if (!isValidSubscription) {
         throw new HttpException('You need active subscription to write exam', 400);
       }
@@ -92,6 +97,7 @@ export class ExamService {
           examDate: examGenerationDTO.examDate ? moment.tz(examGenerationDTO.examDate, APP_TIMEZONE).toDate() : undefined,
           batchIds: <Types.ObjectId[]>(<unknown>examGenerationDTO.batchIds?.split(',')) || undefined,
           duration: examGenerationDTO.duration,
+          skipQuestions: examGenerationDTO.examType === EXAM_TYPES.PRACTICE,
           userId: user.userId,
         };
         const examResponse = await this.examModel.create(newExam);
@@ -293,12 +299,12 @@ export class ExamService {
       if (!examDetails) throw new HttpException('Unable to register for this exam', 400);
 
       // ACL Validation
-      // if (examDetails.examType === EXAM_TYPES.ACL) {
-      //   const isValid = await this.getWCLValidation(user.userId, 2);
-      //   if (!isValid) {
-      //     throw new HttpException('You are not allowed to Register for this exam. Kindly check the exam criteria', 400);
-      //   }
-      // }
+      if (examDetails.examType === EXAM_TYPES.ACL) {
+        const isValid = await this.getWCLValidation(user.userId, 2);
+        if (!isValid) {
+          throw new HttpException('You are not allowed to Register for this exam. Kindly check the exam criteria', 400);
+        }
+      }
 
       let transaction;
       let orderResponse;

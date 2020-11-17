@@ -49,7 +49,7 @@ export class TeachersController {
   }
 
   @Put('/')
-  @SetMetadata('roles', [ROLES.TEACHER])
+  @SetMetadata('roles', [ROLES.TEACHER, ROLES.ADMIN])
   @UseGuards(JwtAuthGuard, RolesGuard)
   @UseInterceptors(
     FileInterceptor('profileImage', {
@@ -67,8 +67,14 @@ export class TeachersController {
     @UploadedFile() profileImage: any,
   ): Promise<any> {
     const user: any = request.user;
+    let teacherId;
+    if (user.role === ROLES.ADMIN) {
+      teacherId = updateTeacherDTO.teacherId;
+    } else {
+      teacherId = user.userId;
+    }
     return this.teachersService.updateTeacherDetails({
-      teacherId: user.userId,
+      teacherId,
       teacherData: updateTeacherDTO,
       profileImage,
     });

@@ -199,8 +199,6 @@ export class TeachersService {
       const teacherDetails: any = await this.teacherModel.findOne({ _id: Types.ObjectId(teacherId) });
       if (!teacherDetails) throw new HttpException("Couldn't find the teacher details", 400);
 
-      console.log('profileImage', profileImage);
-
       if (profileImage) {
         // Delete the existing profile image
         if (teacherDetails.profileImage) {
@@ -236,6 +234,14 @@ export class TeachersService {
       if (teacherData?.password) {
         const encryptedPassword = bcyrpt.hashSync(teacherData?.password, parseInt(process.env.PASSWORD_HASH_SALT_ROUND));
         teacherDetails.password = encryptedPassword;
+      }
+
+      if (teacherData.expiryAt) {
+        teacherDetails.subscriptionDetails.expiryAt = moment.tz(teacherData.expiryAt, APP_TIMEZONE).toDate();
+      }
+
+      if (teacherData.enabled !== undefined) {
+        teacherDetails.enabled = teacherData.enabled;
       }
 
       teacherDetails.save();
@@ -353,7 +359,6 @@ export class TeachersService {
     try {
       const batches = await this.batchesService.getBatchesByTeacher(user.userId);
       const batchIds = batches.map(batch => batch._id);
-      console.log('batchIds', batchIds);
       const examReports = await this.examService.getParticipantsReport({ batchIds, examTypes: [EXAM_TYPES.ACL, EXAM_TYPES.WCL] });
       const WCLExams = examReports.filter(exam => exam.examType === EXAM_TYPES.WCL);
       const ACLExams = examReports.filter(exam => exam.examType === EXAM_TYPES.ACL);

@@ -209,7 +209,7 @@ export class PricingPlansService {
           transactionId: transactionDetails._id,
           pricingPlanId: transactionDetails.pricingPlanId,
           userId: transactionDetails.userId,
-          role: userDetails.role,
+          role: transactionDetails.role,
           fromDate: moment.tz(fromDate, APP_TIMEZONE).toDate(),
           toDate: expiryAt,
         });

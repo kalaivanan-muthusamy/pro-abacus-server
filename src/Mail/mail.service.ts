@@ -23,7 +23,6 @@ export class MailService {
         html: emailContent.html,
       };
       const emailRes = await transporter.sendMail(msg);
-      console.info(emailRes);
     } catch (err) {
       console.error(err);
       if (err instanceof HttpException) throw err;
