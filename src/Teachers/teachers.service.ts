@@ -59,7 +59,7 @@ export class TeachersService {
         to: teacherRegistrationDTO.email,
         subject: 'Thanks for registering with Pro Abacus',
         html: `<p>Thanks for registering with Pro Abacus<p>
-          <p>Click the blow link to verify your email and proceed to login</p>
+          <p>Click the below link to verify your email and proceed to login</p>
           <p><a href='https://proabacus.com/email-verify/teacher/${encodeURIComponent(
             teacherRegistrationDTO.email,
           )}/${emailVerificationHash}'>Verify Email</a></p>`,
@@ -148,7 +148,7 @@ export class TeachersService {
         to: email,
         subject: 'Reset password link -Pro Abacus',
         html: `
-          <p>Click the blow link to reset your password</p>
+          <p>Click the below link to reset your password</p>
           <p><a href='https://proabacus.com/reset-password/teacher/${encodeURIComponent(
             email,
           )}/${forgotPasswordHash}'>Reset Password</a></p>`,

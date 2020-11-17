@@ -70,14 +70,14 @@ export class ExamService {
         userDetails = await this.studentsService.getStudentDetails({ studentId: user.userId });
         isValidSubscription = await this.studentsService.isValidSubscription(user.userId);
         if (!userDetails) throw new HttpException('Invalid user', 400);
-      if (!userDetails?.enabled) throw new HttpException('You account is currently disabled', 400);
+        if (!userDetails?.enabled) throw new HttpException('You account is currently disabled', 400);
       } else if (user.role === ROLES.TEACHER) {
         userDetails = await this.teachersService.getTeacherDetails({ teacherId: user.userId });
         isValidSubscription = await this.teachersService.isValidSubscription(user.userId);
         if (!userDetails) throw new HttpException('Invalid user', 400);
-      if (!userDetails?.enabled) throw new HttpException('You account is currently disabled', 400);
+        if (!userDetails?.enabled) throw new HttpException('You account is currently disabled', 400);
       }
-      
+
       if (!isValidSubscription) {
         throw new HttpException('You need active subscription to write exam', 400);
       }
@@ -437,6 +437,7 @@ export class ExamService {
 
       const examAnswers = await this.answersModel.findOne({ examId: Types.ObjectId(examId), userId: Types.ObjectId(user.userId) });
       if (!examAnswers) throw new HttpException('This exam is not available for you to complete or already expired', 400);
+      if (examAnswers.examCompletedOn) throw new HttpException('This exam is already completed', 400);
 
       examAnswers.examCompletedOn = moment.tz(APP_TIMEZONE).toDate();
       await examAnswers.save();

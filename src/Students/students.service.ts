@@ -90,7 +90,7 @@ export class StudentsService {
         to: email,
         subject: 'Reset password link -Pro Abacus',
         html: `
-          <p>Click the blow link to reset your password</p>
+          <p>Click the below link to reset your password</p>
           <p><a href='https://proabacus.com/reset-password/student/${encodeURIComponent(
             email,
           )}/${forgotPasswordHash}'>Reset Password</a></p>`,
@@ -164,7 +164,7 @@ export class StudentsService {
         html: `
           <p>Hi ${studentRegisterDTO.name},</p>
           <p>Welcome to <a href='https://proabacus.com'>ProAbacus.com</a><p>
-          <p>Click the blow link to verify your email and proceed to login</p>
+          <p>Click the below link to verify your email and proceed to login</p>
           <p><a href='https://proabacus.com/email-verify/student/${encodeURIComponent(
             studentRegisterDTO.email,
           )}/${emailVerificationHash}'>Verify Email</a></p>`,

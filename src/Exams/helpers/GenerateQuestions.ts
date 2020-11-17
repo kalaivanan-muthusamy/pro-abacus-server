@@ -27,7 +27,13 @@ function generateIndividualQuestion(type: string, questionConfig: any, negativeM
     case MATH_TYPE.ADDITION_AND_SUBTRACTION: {
       const totalQuestions = questionConfig.questions;
       [...Array(totalQuestions)].map(() => {
-        let rowValues = [...Array(questionConfig.rows)].map(() => getRandomDigits({ length: questionConfig.digits }));
+        let rowValues = [...Array(questionConfig.rows)].reduce((acc) => {
+          let num = getRandomDigits({ length: questionConfig.digits });
+          while (acc.includes(num)) {
+            num = getRandomDigits({ length: questionConfig.digits });
+          }
+          return [...acc, num];
+        }, []);
         rowValues = rowValues.sort().reverse();
         rowValues = rowValues.map((a, index) => (index % 2 !== 0 ? -a : a));
         questions.push({
@@ -72,11 +78,11 @@ function generateIndividualQuestion(type: string, questionConfig: any, negativeM
         }
         if (!Number.isInteger(tempDividend / tempDivisor)) {
           const modulusValue = tempDividend % tempDivisor;
-          if (Number(tempDividend - modulusValue).toString().length === questionConfig.dividendDigits) {
+          const tempDivided2 = tempDividend - modulusValue;
+          if (Number(tempDivided2).toString().length === questionConfig.dividendDigits) {
             tempDividend = tempDividend - modulusValue;
           } else {
-            const tempModulus = tempDivisor % modulusValue;
-            tempDividend = tempDividend + tempModulus;
+            tempDividend = tempDivided2 + tempDivisor;
           }
         }
         const dividend = tempDividend;
