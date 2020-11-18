@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import { MATH_TYPE } from 'src/constants';
 import { ExamSplitUpInterface } from '../exams.schema';
-import { SPLITUP_CATEGORY } from 'src/constants';
+import { isNumArrayEqual } from 'src/Helpers/Common';
 
 export function generateAllQuestions(splitUps: ExamSplitUpInterface, negativeMarks = false): any {
   let questions = [];
@@ -25,18 +25,27 @@ function generateIndividualQuestion(type: string, questionConfig: any, negativeM
   const questions = [];
   switch (type) {
     case MATH_TYPE.ADDITION_AND_SUBTRACTION: {
+      const additionQuestions = [];
       const totalQuestions = questionConfig.questions;
       [...Array(totalQuestions)].map(() => {
-        let rowValues = [...Array(questionConfig.rows)].reduce((acc) => {
-          let num = getRandomDigits({ length: questionConfig.digits });
-          while (acc.includes(num)) {
-            num = getRandomDigits({ length: questionConfig.digits });
-          }
-          return [...acc, num];
-        }, []);
-        rowValues = rowValues.sort().reverse();
-        rowValues = rowValues.map((a, index) => (index % 2 !== 0 ? -a : a));
-        questions.push({
+        let isQuestionExist = true;
+        let rowValues;
+        while (isQuestionExist) {
+          rowValues = [...Array(questionConfig.rows)].reduce(acc => {
+            let num = getRandomDigits({ length: questionConfig.digits, ignore: [0, 1] });
+            while (acc.includes(num)) {
+              num = getRandomDigits({ length: questionConfig.digits, ignore: [0, 1] });
+            }
+            return [...acc, num];
+          }, []);
+          rowValues = rowValues.sort((a, b) => a - b).reverse();
+          rowValues = rowValues.map((a, index) => (index % 2 !== 0 ? -a : a));
+          isQuestionExist = additionQuestions.find(
+            question => question.rowValues.length === rowValues.length && isNumArrayEqual(question.rowValues, rowValues, true),
+          );
+        }
+
+        additionQuestions.push({
           type,
           digits: questionConfig.digits,
           rows: questionConfig.rows,
@@ -46,15 +55,24 @@ function generateIndividualQuestion(type: string, questionConfig: any, negativeM
           negativeMark: negativeMarks ? questionConfig?.marks : undefined,
         });
       });
+      questions.push(...additionQuestions);
       break;
     }
     case MATH_TYPE.MULTIPLICATION: {
       const totalQuestions = questionConfig.questions;
+      const multiplicationQuestions = [];
       [...Array(totalQuestions)].map(() => {
-        const multiplicand = getRandomDigits({ length: questionConfig.multiplicandDigits, ignore: [0, 1] });
-        const multiplier = getRandomDigits({ length: questionConfig.multiplicandDigits, ignore: [0, 1, multiplicand] });
-        const rowValues = [multiplicand, multiplier];
-        questions.push({
+        let isQuestionExist = true;
+        let rowValues;
+        while (isQuestionExist) {
+          const multiplicand = getRandomDigits({ length: questionConfig.multiplicandDigits, ignore: [0, 1] });
+          const multiplier = getRandomDigits({ length: questionConfig.multiplicandDigits, ignore: [0, 1, multiplicand] });
+          rowValues = [multiplicand, multiplier];
+          isQuestionExist = multiplicationQuestions.find(
+            question => question.rowValues.length === rowValues.length && isNumArrayEqual(question.rowValues, rowValues, true),
+          );
+        }
+        multiplicationQuestions.push({
           type,
           multiplicandDigits: questionConfig.multiplicandDigits,
           multiplierDigits: questionConfig.multiplierDigits,
@@ -64,31 +82,43 @@ function generateIndividualQuestion(type: string, questionConfig: any, negativeM
           negativeMark: negativeMarks ? questionConfig?.marks : undefined,
         });
       });
+      questions.push(...multiplicationQuestions);
       break;
     }
     case MATH_TYPE.DIVISION: {
       const totalQuestions = questionConfig.questions;
+      const divisionQuestions = [];
       [...Array(totalQuestions)].map(() => {
-        let tempDividend = getRandomDigits({ length: questionConfig.dividendDigits, ignore: [0, 1] });
-        let tempDivisor = getRandomDigits({ length: questionConfig.divisorDigits, ignore: [0, 1, tempDividend] });
-        if (tempDividend < tempDivisor) {
-          const temp = tempDividend;
-          tempDividend = tempDivisor;
-          tempDivisor = temp;
-        }
-        if (!Number.isInteger(tempDividend / tempDivisor)) {
-          const modulusValue = tempDividend % tempDivisor;
-          const tempDivided2 = tempDividend - modulusValue;
-          if (Number(tempDivided2).toString().length === questionConfig.dividendDigits) {
-            tempDividend = tempDividend - modulusValue;
-          } else {
-            tempDividend = tempDivided2 + tempDivisor;
+        let isQuestionExist = true;
+        let rowValues;
+        while (isQuestionExist) {
+          let tempDividend = getRandomDigits({ length: questionConfig.dividendDigits, ignore: [0, 1] });
+          let tempDivisor = getRandomDigits({ length: questionConfig.divisorDigits, ignore: [0, 1, tempDividend] });
+          if (tempDividend < tempDivisor) {
+            const temp = tempDividend;
+            tempDividend = tempDivisor;
+            tempDivisor = temp;
           }
+          if (!Number.isInteger(tempDividend / tempDivisor)) {
+            const modulusValue = tempDividend % tempDivisor;
+            const tempDivided2 = tempDividend - modulusValue;
+            if (Number(tempDivided2).toString().length === questionConfig.dividendDigits) {
+              tempDividend = tempDividend - modulusValue;
+            } else {
+              tempDividend = tempDivided2 + tempDivisor;
+            }
+          }
+          const dividend = tempDividend;
+          const divisor = tempDivisor;
+          rowValues = [dividend, divisor];
+          isQuestionExist =
+            dividend === divisor ||
+            divisionQuestions.find(
+              question => question.rowValues.length === rowValues.length && isNumArrayEqual(question.rowValues, rowValues, true),
+            );
         }
-        const dividend = tempDividend;
-        const divisor = tempDivisor;
-        const rowValues = [dividend, divisor];
-        questions.push({
+
+        divisionQuestions.push({
           type,
           dividendDigits: questionConfig.dividendDigits,
           divisorDigits: questionConfig.divisorDigits,
@@ -98,6 +128,7 @@ function generateIndividualQuestion(type: string, questionConfig: any, negativeM
           negativeMark: negativeMarks ? questionConfig?.marks : undefined,
         });
       });
+      questions.push(...divisionQuestions);
       break;
     }
   }

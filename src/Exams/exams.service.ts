@@ -459,7 +459,7 @@ export class ExamService {
           examAnswers?.answers?.reduce?.((acc, cur) => cur.timeTaken + acc, 0),
           0,
         );
-        const speed = parseFloat(((answeredQuestions / timeTaken) * 60).toFixed(2));
+        const speed = parseFloat(((answeredQuestions / timeTaken) * 60).toFixed(2)) || 0;
 
         // Get batch id
         let studentDetails;
