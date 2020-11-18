@@ -66,7 +66,7 @@ function generateIndividualQuestion(type: string, questionConfig: any, negativeM
         let rowValues;
         while (isQuestionExist) {
           const multiplicand = getRandomDigits({ length: questionConfig.multiplicandDigits, ignore: [0, 1] });
-          const multiplier = getRandomDigits({ length: questionConfig.multiplicandDigits, ignore: [0, 1, multiplicand] });
+          const multiplier = getRandomDigits({ length: questionConfig.multiplierDigits, ignore: [0, 1, multiplicand] });
           rowValues = [multiplicand, multiplier];
           isQuestionExist = multiplicationQuestions.find(
             question => question.rowValues.length === rowValues.length && isNumArrayEqual(question.rowValues, rowValues, true),

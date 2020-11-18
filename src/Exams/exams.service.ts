@@ -739,6 +739,7 @@ export class ExamService {
         .find(filter)
         .populate('studentDetails', 'name')
         .populate('examDetails', 'name examDate')
+        .sort({ createdAt: -1 })
         .limit(resultLimit);
       return examResults;
     } catch (err) {
