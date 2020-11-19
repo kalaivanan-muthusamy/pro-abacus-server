@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-
 import { getFormattedNumber } from 'src/Helpers/Math';
+import * as moment from 'moment';
 
 export function getAverageSpeed(exams: any): any {
   let totalSpeed = 0;
@@ -61,4 +61,25 @@ export function getAverageAccuracy(exams: any): any {
   const avgAccuracy = totalAccuracy / totalExams;
 
   return parseFloat(avgAccuracy.toFixed(2)) || 0;
+}
+
+export function calculateTimeTaken({ startTime, endTime, examDuration }): number {
+  const examStartedTime = moment(startTime);
+  const examCompletedTime = moment(endTime);
+  let timeTaken = examCompletedTime.diff(examStartedTime, 'seconds', true);
+
+  // Due to network latency, it is possible that minor difference in time taken.
+  // Time taken to complete the exam should never exceed the duration and should
+  // never be in negative
+  // timeTaken -= 3;
+  
+  const examDurationInSeconds = examDuration * 60;
+  if (examDurationInSeconds && timeTaken > examDurationInSeconds) {
+    timeTaken = examDurationInSeconds;
+  }
+  if (timeTaken < 0) {
+    timeTaken = 0;
+  }
+
+  return getFormattedNumber(timeTaken, 0);
 }

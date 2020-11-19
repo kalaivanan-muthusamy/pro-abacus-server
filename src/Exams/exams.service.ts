@@ -37,6 +37,7 @@ import { PRICING_PLAN_TYPES } from 'src/constants';
 import { PAYMENT_STATUSES } from './../constants';
 import { TeachersService } from './../Teachers/teachers.service';
 import { getMonthByNumber } from './../Helpers/Date/index';
+import { calculateTimeTaken } from './exams.helper';
 
 @Injectable()
 export class ExamService {
@@ -455,10 +456,13 @@ export class ExamService {
         const answeredQuestions = examAnswers?.answers?.length;
         const correctAnswers = examAnswers?.answers?.filter?.(answer => answer?.isCorrectAnswer)?.length || 0;
         const inCorrectAnswers = answeredQuestions - correctAnswers;
-        const timeTaken = getFormattedNumber(
-          examAnswers?.answers?.reduce?.((acc, cur) => cur.timeTaken + acc, 0),
-          0,
-        );
+
+        const timeTaken = calculateTimeTaken({
+          startTime: examAnswers?.examStartedOn,
+          endTime: examAnswers?.examCompletedOn,
+          examDuration: examDetails.duration,
+        });
+
         const speed = parseFloat(((answeredQuestions / timeTaken) * 60).toFixed(2)) || 0;
 
         // Get batch id
@@ -510,7 +514,7 @@ export class ExamService {
         givenAnswer: parseFloat(captureAnswerDTO.answer),
         answer: question.answer,
         isCorrectAnswer: question.answer === parseFloat(captureAnswerDTO.answer),
-        timeTaken: parseFloat('' + captureAnswerDTO.timeTaken),
+        timeTaken: getFormattedNumber(captureAnswerDTO.timeTaken, 1),
       };
       existingAnswers.answers = [...existingAnswers.answers, answer];
       await existingAnswers.save();
@@ -992,10 +996,13 @@ export class ExamService {
         const correctAnswers = examAnswers?.answers?.filter?.(answer => answer?.isCorrectAnswer)?.length || 0;
         const inCorrectAnswers = answeredQuestions - correctAnswers;
         const scoredMarks = getScoredMarks(examDetails, examAnswers);
-        const timeTaken = getFormattedNumber(
-          examAnswers?.answers?.reduce?.((acc, cur) => cur.timeTaken + acc, 0),
-          0,
-        );
+
+        const timeTaken = calculateTimeTaken({
+          startTime: examAnswers?.examStartedOn,
+          endTime: examAnswers?.examCompletedOn,
+          examDuration: examDetails.duration,
+        });
+
         const speed = parseFloat(((answeredQuestions / timeTaken) * 60).toFixed(2));
         const result = {
           examId: examDetails._id,
@@ -1008,7 +1015,7 @@ export class ExamService {
           answeredQuestions,
           correctAnswers,
           inCorrectAnswers,
-          timeTaken: timeTaken,
+          timeTaken,
           percentile: 0,
           rank: 0,
           scoredMarks,
