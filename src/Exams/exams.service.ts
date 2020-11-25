@@ -71,12 +71,14 @@ export class ExamService {
         userDetails = await this.studentsService.getStudentDetails({ studentId: user.userId });
         isValidSubscription = await this.studentsService.isValidSubscription(user.userId);
         if (!userDetails) throw new HttpException('Invalid user', 400);
-        if (!userDetails?.enabled) throw new HttpException('You account is currently disabled', 400);
+        if (!userDetails?.enabled)
+          throw new HttpException('You account is currently disabled. Please contact us at support@proabacus.com', 400);
       } else if (user.role === ROLES.TEACHER) {
         userDetails = await this.teachersService.getTeacherDetails({ teacherId: user.userId });
         isValidSubscription = await this.teachersService.isValidSubscription(user.userId);
         if (!userDetails) throw new HttpException('Invalid user', 400);
-        if (!userDetails?.enabled) throw new HttpException('You account is currently disabled', 400);
+        if (!userDetails?.enabled)
+          throw new HttpException('You account is currently disabled. Please contact us at support@proabacus.com', 400);
       }
 
       if (!isValidSubscription) {
@@ -730,7 +732,7 @@ export class ExamService {
     }
   }
 
-  async getExamResults(examId: string = null, limit = '10', examType: string = null, userId: string = null): Promise<any> {
+  async getExamResults(examId: string = null, limit = '100', examType: string = null, userId: string = null): Promise<any> {
     try {
       const filter: any = {};
       if (examId) filter.examId = Types.ObjectId(examId);

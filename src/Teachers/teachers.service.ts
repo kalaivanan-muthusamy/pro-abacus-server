@@ -38,7 +38,7 @@ export class TeachersService {
       // Check if the teacher exist
       const existingTeacher = await this.teacherModel.findOne({ email: teacherRegistrationDTO.email });
       if (existingTeacher) {
-        throw new HttpException('Teacher already exist', 400);
+        throw new HttpException('Email Id already exist', 400);
       }
 
       const emailVerificationHash = crypto.createHash('sha256').digest('hex');

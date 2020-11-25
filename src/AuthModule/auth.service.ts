@@ -26,7 +26,7 @@ export class AuthService {
       const student = await this.studentModel.findOne({
         email: authenticationDTO.email,
       });
-      if (!student) throw new BadRequestException('Unable to find this user in our records');
+      if (!student) throw new BadRequestException("Email Id doesn't exist");
       if (!student.emailVerified) throw new BadRequestException('Email is not verified yet!');
       if (!student.enabled) throw new BadRequestException('You account has been disabled');
       if (!(await compare(authenticationDTO.password, student.password))) {
@@ -47,7 +47,7 @@ export class AuthService {
       const teacher = await this.teachersModel.findOne({
         email: authenticationDTO.email,
       });
-      if (!teacher) throw new BadRequestException('Unable to find this user in our records');
+      if (!teacher) throw new BadRequestException("Email Id doesn't exist");
       if (!teacher.enabled) throw new BadRequestException('You account has been disabled');
       if (!teacher.emailVerified) throw new BadRequestException('Email is not verified yet!');
       if (!(await compare(authenticationDTO.password, teacher.password))) {
@@ -68,7 +68,7 @@ export class AuthService {
       const admin = await this.adminModel.findOne({
         email: authenticationDTO.email,
       });
-      if (!admin) throw new BadRequestException('Unable to find this user in our records');
+      if (!admin) throw new BadRequestException("Email Id doesn't exist");
       if (!(await compare(authenticationDTO.password, admin.password))) {
         throw new BadRequestException('Invalid password');
       }

@@ -141,7 +141,7 @@ export class StudentsService {
       // Check if the student exist
       const existingStudent = await this.studentModel.findOne({ email: studentRegisterDTO.email });
       if (existingStudent) {
-        throw new HttpException('Student already exist', 400);
+        throw new HttpException('Email Id already exist', 400);
       }
 
       const encryptedPassword = bcyrpt.hashSync(studentRegisterDTO.password, parseInt(process.env.PASSWORD_HASH_SALT_ROUND));
